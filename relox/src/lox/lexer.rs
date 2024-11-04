@@ -77,6 +77,7 @@ fn is_alphanumeric(c: char) -> bool {
 pub enum LexError<'a> {
     UnexpectedCharacter { lexeme: Lexeme<'a> },
     UnterminatedString,
+    UnterminatedComment,
 }
 
 impl<'a> Iterator for Lexer<'a> {
@@ -108,6 +109,22 @@ impl<'a> Iterator for Lexer<'a> {
                 '/' if self.take_equals('/').unwrap_or(false) => {
                     // Skip the comments
                     let _ = self.take_while(|c| c != '\n');
+                    continue;
+                }
+                '/' if self.take_equals('*').unwrap_or(false) => {
+                    // Skip the comments
+                    let mut got_star = false;
+                    match self.take_until(|c| {
+                        match (got_star, c) {
+                            (true, '/') => return true,
+                            (_, '*') => got_star = true,
+                            _ => got_star = false,
+                        }
+                        false
+                    }) {
+                        Ok(()) => {}
+                        Err(Eof) => return Some(Err(LexError::UnterminatedComment)),
+                    };
                     continue;
                 }
                 '/' => TokenValue::Slash,
