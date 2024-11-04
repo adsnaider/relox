@@ -39,7 +39,17 @@ impl Cli {
         Self { lox: Lox::new() }
     }
 
-    pub fn repl(&self) -> Result<(), ReplError> {
+    pub fn run() -> anyhow::Result<()> {
+        let mut app = Cli::new();
+        let CliArgs { script } = CliArgs::parse();
+        match script {
+            Some(file) => app.run_source(&file)?,
+            None => app.repl()?,
+        }
+        Ok(())
+    }
+
+    pub fn repl(&mut self) -> Result<(), ReplError> {
         let mut line = String::new();
         loop {
             print!("> ");
@@ -57,7 +67,7 @@ impl Cli {
         Ok(())
     }
 
-    pub fn run_source(&self, source: &Path) -> Result<(), RunError> {
+    pub fn run_source(&mut self, source: &Path) -> Result<(), RunError> {
         let mut content = String::new();
         let mut file = File::open(source)?;
         file.read_to_string(&mut content)?;

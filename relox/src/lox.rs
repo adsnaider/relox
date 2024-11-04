@@ -1,3 +1,4 @@
+use lexer::Lexer;
 use thiserror::Error;
 
 mod lexer;
@@ -13,7 +14,11 @@ impl Lox {
         Self {}
     }
 
-    pub fn eval(&self, source: &str) -> Result<(), LoxError> {
-        todo!();
+    pub fn eval(&mut self, source: &str) -> Result<(), LoxError> {
+        let lexer = Lexer::new(source);
+        for token in lexer {
+            println!("{:?}", token)
+        }
+        Ok(())
     }
 }
