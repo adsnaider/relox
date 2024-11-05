@@ -1,7 +1,8 @@
 use lexer::Lexer;
 use thiserror::Error;
 
-mod lexer;
+pub mod ast;
+pub mod lexer;
 
 #[derive(Error, Debug)]
 pub enum LoxError {}

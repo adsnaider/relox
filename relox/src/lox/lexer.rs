@@ -185,6 +185,17 @@ pub struct Lexeme<'a> {
 }
 
 impl<'a> Lexeme<'a> {
+    pub fn as_str(&self) -> &str {
+        &self.payload
+    }
+
+    pub fn new(payload: impl Into<Cow<'a, str>>, source_offset: usize) -> Self {
+        Self {
+            payload: payload.into(),
+            source_offset,
+        }
+    }
+
     fn string_literal(&self) -> String {
         self.payload.trim_matches('"').to_string()
     }
@@ -202,8 +213,8 @@ impl<'a> Lexeme<'a> {
 
 #[derive(Debug, Clone)]
 pub struct Token<'a> {
-    value: TokenValue,
-    lexeme: Lexeme<'a>,
+    pub value: TokenValue,
+    pub lexeme: Lexeme<'a>,
 }
 
 #[derive(Debug, Clone)]
