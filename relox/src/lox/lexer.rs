@@ -1,6 +1,6 @@
-// TODO: Remove directive
-#![allow(dead_code)]
 use std::borrow::Cow;
+
+use strum::EnumDiscriminants;
 
 /// Lexer for the Lox language
 pub struct Lexer<'a> {
@@ -13,6 +13,31 @@ struct Eof;
 impl<'a> Lexer<'a> {
     pub fn new(input: &'a str) -> Self {
         Self { input, offset: 0 }
+    }
+
+    pub fn lex(self) -> Result<Vec<Token<'a>>, Vec<LexError<'a>>> {
+        let mut tokens = Vec::new();
+        let mut errors = Vec::new();
+        let mut is_last_error = false;
+        for output in self {
+            match output {
+                Ok(t) => {
+                    tokens.push(t);
+                    is_last_error = false;
+                }
+                Err(e) => {
+                    if !is_last_error {
+                        errors.push(e);
+                    }
+                    is_last_error = true;
+                }
+            }
+        }
+        if errors.is_empty() {
+            Ok(tokens)
+        } else {
+            Err(errors)
+        }
     }
 
     fn take(&mut self) -> Option<char> {
@@ -73,10 +98,28 @@ fn is_alphanumeric(c: char) -> bool {
     c.is_ascii_alphanumeric() || c == '_'
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum LexError<'a> {
     UnexpectedCharacter { lexeme: Lexeme<'a> },
     UnterminatedString,
+}
+
+impl<'a> Token<'a> {
+    pub fn to_owned(self) -> Token<'static> {
+        Token {
+            lexeme: self.lexeme.to_owned(),
+            value: self.value,
+        }
+    }
+}
+
+impl Lexeme<'_> {
+    pub fn to_owned(self) -> Lexeme<'static> {
+        Lexeme {
+            payload: self.payload.into_owned().into(),
+            ..self
+        }
+    }
 }
 
 impl<'a> Iterator for Lexer<'a> {
@@ -180,13 +223,20 @@ const fn reserved_keywords(keyword: &[u8]) -> Option<TokenValue> {
 
 #[derive(Debug, Clone)]
 pub struct Lexeme<'a> {
-    payload: Cow<'a, str>,
-    source_offset: usize,
+    pub payload: Cow<'a, str>,
+    pub source_offset: usize,
 }
 
 impl<'a> Lexeme<'a> {
     pub fn as_str(&self) -> &str {
         &self.payload
+    }
+
+    pub const fn from_str(payload: &'a str, source_offset: usize) -> Self {
+        Self {
+            payload: Cow::Borrowed(payload),
+            source_offset,
+        }
     }
 
     pub fn new(payload: impl Into<Cow<'a, str>>, source_offset: usize) -> Self {
@@ -217,7 +267,8 @@ pub struct Token<'a> {
     pub lexeme: Lexeme<'a>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, EnumDiscriminants)]
+#[strum_discriminants(name(TokenVariants))]
 pub enum TokenValue {
     LeftParen,
     RightParen,
@@ -257,4 +308,5 @@ pub enum TokenValue {
     True,
     Var,
     While,
+    Eof,
 }

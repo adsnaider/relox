@@ -1,5 +1,5 @@
 use relox::cli::Cli;
 
-fn main() -> anyhow::Result<()> {
+fn main() {
     Cli::run()
 }

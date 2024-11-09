@@ -7,4 +7,6 @@ default-run = "cli"
 [dependencies]
 anyhow = "1.0.92"
 clap = { version = "4.5.20", features = ["derive"] }
-thiserror = "1.0.67"
+derive_more = { version = "1.0.0", features = ["error", "from"] }
+strum = { version = "0.26.3", features = ["derive"] }
+thiserror = "2.0.1"

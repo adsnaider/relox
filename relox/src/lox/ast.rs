@@ -7,7 +7,7 @@ pub enum Expr<'a> {
     Literal(Box<Literal<'a>>),
     Unary(Box<UnaryExpr<'a>>),
     Binary(Box<BinaryExpr<'a>>),
-    Grouping(Box<Expr<'a>>),
+    Grouping(Box<Grouping<'a>>),
 }
 
 #[derive(Debug)]
@@ -18,18 +18,19 @@ pub struct Literal<'a> {
 #[derive(Debug)]
 pub struct UnaryExpr<'a> {
     pub op: Token<'a>,
-    pub rhs: Box<Expr<'a>>,
+    pub rhs: Expr<'a>,
 }
 
 #[derive(Debug)]
 pub struct BinaryExpr<'a> {
-    pub lhs: Box<Expr<'a>>,
-    pub rhs: Box<Expr<'a>>,
+    pub lhs: Expr<'a>,
+    pub rhs: Expr<'a>,
     pub op: Token<'a>,
 }
 
+#[derive(Debug)]
 pub struct Grouping<'a> {
-    pub expr: Box<Expr<'a>>,
+    pub expr: Expr<'a>,
 }
 
 pub struct ExprPrinter;
@@ -67,8 +68,8 @@ impl ExprVisitor for ExprPrinter {
         print!("{}", literal_expr.value.lexeme.as_str());
     }
 
-    fn visit_group_expr(&mut self, group_expr: &Expr) -> Self::Output {
-        self.print_recursive("group", &[group_expr])
+    fn visit_group_expr(&mut self, group_expr: &Grouping) -> Self::Output {
+        self.print_recursive("group", &[&group_expr.expr])
     }
 }
 
@@ -89,5 +90,5 @@ pub trait ExprVisitor {
     fn visit_binary_expr(&mut self, binary_expr: &BinaryExpr) -> Self::Output;
     fn visit_unary_expr(&mut self, unary_expr: &UnaryExpr) -> Self::Output;
     fn visit_literal(&mut self, literal_expr: &Literal) -> Self::Output;
-    fn visit_group_expr(&mut self, group_expr: &Expr) -> Self::Output;
+    fn visit_group_expr(&mut self, group_expr: &Grouping) -> Self::Output;
 }

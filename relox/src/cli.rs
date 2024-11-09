@@ -2,12 +2,12 @@ use std::{
     fs::File,
     io::{stdin, Read, Write},
     path::{Path, PathBuf},
+    process::exit,
 };
 
 use clap::Parser;
-use thiserror::Error;
 
-use crate::lox::{Lox, LoxError};
+use crate::lox::Lox;
 
 /// Lox interpreter
 #[derive(Debug, Parser)]
@@ -20,58 +20,54 @@ pub struct Cli {
     lox: Lox,
 }
 
-#[derive(Error, Debug)]
-pub enum ReplError {
-    #[error("IO Error: {0}")]
-    Io(#[from] std::io::Error),
-}
+#[derive(Debug)]
+pub enum ReplError {}
 
-#[derive(Error, Debug)]
-pub enum RunError {
-    #[error("IO Error: {0}")]
-    Io(#[from] std::io::Error),
-    #[error(transparent)]
-    LoxError(#[from] LoxError),
-}
+#[derive(Debug)]
+pub struct RunError {}
 
 impl Cli {
     pub fn new() -> Self {
         Self { lox: Lox::new() }
     }
 
-    pub fn run() -> anyhow::Result<()> {
+    pub fn run() -> ! {
         let mut app = Cli::new();
         let CliArgs { script } = CliArgs::parse();
         match script {
-            Some(file) => app.run_source(&file)?,
-            None => app.repl()?,
+            Some(file) => app.run_source(&file),
+            None => app.repl(),
         }
-        Ok(())
     }
 
-    pub fn repl(&mut self) -> Result<(), ReplError> {
+    pub fn repl(&mut self) -> ! {
         let mut line = String::new();
         loop {
             print!("> ");
-            std::io::stdout().flush()?;
+            std::io::stdout()
+                .flush()
+                .unwrap_or_else(|e| panic!("Unexpected I/O Error: {e}"));
             line.clear();
-            match stdin().read_line(&mut line)? {
+            match stdin()
+                .read_line(&mut line)
+                .unwrap_or_else(|e| panic!("Unexpected I/O error: {e}"))
+            {
                 0 => break,
                 _ => {}
             }
-            if let Err(e) = self.lox.eval(&line) {
-                println!("{}", e);
-            }
+            let _ = self.lox.eval(&line).inspect_err(|e| e.report());
         }
-        println!("");
-        Ok(())
+        println!();
+        exit(0)
     }
 
-    pub fn run_source(&mut self, source: &Path) -> Result<(), RunError> {
+    pub fn run_source(&mut self, source: &Path) -> ! {
         let mut content = String::new();
-        let mut file = File::open(source)?;
-        file.read_to_string(&mut content)?;
-        self.lox.eval(&content)?;
-        Ok(())
+        let mut file = File::open(source)
+            .unwrap_or_else(|e| panic!("Couldn't open the file \"{}\": {e}", source.display()));
+        file.read_to_string(&mut content)
+            .unwrap_or_else(|e| panic!("Couldn't read the file \"{}\": {e}", source.display()));
+        self.lox.eval(&content).unwrap_or_else(|e| e.report());
+        exit(0)
     }
 }
