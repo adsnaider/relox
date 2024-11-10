@@ -246,6 +246,21 @@ impl<'a> Lexeme<'a> {
         }
     }
 
+    pub fn find_in_source(&self, content: &'a str) -> (usize, usize) {
+        let offset = self.source_offset;
+        let mut line = 0;
+        let mut col = 0;
+        content.chars().take(offset).for_each(|c| {
+            if c == '\n' {
+                line += 1;
+                col = 0;
+            } else {
+                col += 1;
+            }
+        });
+        (line, col)
+    }
+
     fn string_literal(&self) -> String {
         self.payload.trim_matches('"').to_string()
     }

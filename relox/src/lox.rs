@@ -1,11 +1,12 @@
 use std::fmt::Display;
 
-use ast::ExprPrinter;
 use derive_more::{Error, From};
-use lexer::{LexError, Lexeme, Lexer};
+use interpreter::evaluate;
+use lexer::{LexError, Lexer};
 use parser::{ParseError, Parser};
 
 pub mod ast;
+pub mod interpreter;
 pub mod lexer;
 pub mod parser;
 
@@ -27,23 +28,6 @@ pub enum LoxErrorKind<'a> {
     ParseError(ParseError<'a>),
 }
 
-impl<'a> LoxError<'a> {
-    fn find_lexeme(&self, lexeme: &Lexeme<'a>) -> (usize, usize) {
-        let offset = lexeme.source_offset;
-        let mut line = 0;
-        let mut col = 0;
-        self.content.chars().take(offset).for_each(|c| {
-            if c == '\n' {
-                line += 1;
-                col = 0;
-            } else {
-                col += 1;
-            }
-        });
-        (line, col)
-    }
-}
-
 impl Display for LoxError<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self.kind {
@@ -51,7 +35,7 @@ impl Display for LoxError<'_> {
                 for error in errors {
                     match error {
                         LexError::UnexpectedCharacter { lexeme } => {
-                            let (line, col) = self.find_lexeme(&lexeme);
+                            let (line, col) = lexeme.find_in_source(&self.content);
                             writeln!(
                                 f,
                                 "Unexpected character \'{}\' at {line}:{col}",
@@ -65,7 +49,7 @@ impl Display for LoxError<'_> {
                 }
             }
             LoxErrorKind::ParseError(ParseError::UnexpectedToken(t)) => {
-                let (line, col) = self.find_lexeme(&t.lexeme);
+                let (line, col) = t.lexeme.find_in_source(&self.content);
                 writeln!(
                     f,
                     "Unexpected token \"{}\" at {line}:{col}",
@@ -97,7 +81,10 @@ impl Lox {
             content: source,
             kind: e.into(),
         })?;
-        ExprPrinter.print(&ast);
+        match evaluate(&ast) {
+            Ok(value) => println!("{value}"),
+            Err(e) => println!("{}", e.display(source)),
+        }
         Ok(())
     }
 }
