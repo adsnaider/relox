@@ -13,6 +13,14 @@ pub enum Stmt<'a> {
     Expr(Box<ExprStmt<'a>>),
     VarDecl(Box<VarDecl<'a>>),
     Block(Box<Block<'a>>),
+    If(Box<If<'a>>),
+}
+
+#[derive(Debug)]
+pub struct If<'a> {
+    pub cond: Expr<'a>,
+    pub then: Stmt<'a>,
+    pub alt: Option<Stmt<'a>>,
 }
 
 #[derive(Debug)]
@@ -119,6 +127,7 @@ impl<'a> Stmt<'a> {
             Stmt::Expr(e) => visitor.visit_expr_stmt(e),
             Stmt::VarDecl(d) => visitor.visit_var_decl(d),
             Stmt::Block(b) => visitor.visit_block(b),
+            Stmt::If(stmt) => visitor.visit_if(stmt),
         }
     }
 }
@@ -156,4 +165,5 @@ pub trait AstVisitor<'a>: Sized {
     fn visit_ident(&mut self, ident: &Ident<'a>) -> Self::Output;
     fn visit_assign(&mut self, assign: &Assignment<'a>) -> Self::Output;
     fn visit_block(&mut self, block: &Block<'a>) -> Self::Output;
+    fn visit_if(&mut self, stmt: &If<'a>) -> Self::Output;
 }

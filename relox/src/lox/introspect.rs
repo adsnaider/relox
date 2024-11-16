@@ -77,4 +77,8 @@ impl<'a> AstVisitor<'a> for AstPrinter {
     fn visit_block(&mut self, block: &Block<'a>) -> Self::Output {
         todo!()
     }
+
+    fn visit_if(&mut self, stmt: &If<'a>) -> Self::Output {
+        todo!()
+    }
 }

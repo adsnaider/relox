@@ -2,7 +2,7 @@ use crate::lox::lexer::Lexeme;
 
 use super::{
     ast::{
-        Assignment, BinaryExpr, Block, Expr, ExprStmt, Ident, Literal, LoxAst, PrintStmt, Stmt,
+        Assignment, BinaryExpr, Block, Expr, ExprStmt, Ident, If, Literal, LoxAst, PrintStmt, Stmt,
         UnaryExpr, VarDecl,
     },
     lexer::{Token, TokenValue, TokenVariants},
@@ -46,7 +46,6 @@ impl<'a> Parser<'a> {
 
     pub fn parse_decl(&mut self) -> Result<Stmt<'a>, ParseError<'a>> {
         self.try_parse_var_decl()
-            .or_else(|| self.try_parse_block())
             .unwrap_or_else(|| self.parse_stmt())
     }
 
@@ -78,7 +77,27 @@ impl<'a> Parser<'a> {
 
     pub fn parse_stmt(&mut self) -> Result<Stmt<'a>, ParseError<'a>> {
         self.try_parse_print_statement()
+            .or_else(|| self.try_parse_if_stmt())
+            .or_else(|| self.try_parse_block())
             .unwrap_or_else(|| self.parse_expr_statement())
+    }
+
+    pub fn try_parse_if_stmt(&mut self) -> Option<Result<Stmt<'a>, ParseError<'a>>> {
+        self.eat_matches(&[TokenVariants::If]).ok()?;
+        let mut inner = || {
+            self.eat_matches(&[TokenVariants::LeftParen])?;
+            let cond = self.parse_expr()?;
+            self.eat_matches(&[TokenVariants::RightParen])?;
+            let then = self.parse_stmt()?;
+
+            let alt = if self.eat_matches(&[TokenVariants::Else]).is_ok() {
+                Some(self.parse_stmt()?)
+            } else {
+                None
+            };
+            Ok(Stmt::If(Box::new(If { cond, then, alt })))
+        };
+        Some(inner())
     }
 
     pub fn parse_block(&mut self) -> Result<Stmt<'a>, ParseError<'a>> {

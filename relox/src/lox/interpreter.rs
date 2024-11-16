@@ -361,6 +361,17 @@ impl<'a> AstVisitor<'a> for Interpreter {
             Ok(Value::Void)
         })
     }
+
+    fn visit_if(&mut self, stmt: &ast::If<'a>) -> Self::Output {
+        let cond = self.visit_expr(&stmt.cond)?;
+        if truthy(&cond) {
+            self.visit_stmt(&stmt.then)
+        } else if let Some(alt) = stmt.alt.as_ref() {
+            self.visit_stmt(alt)
+        } else {
+            Ok(Value::Void)
+        }
+    }
 }
 
 impl Interpreter {
