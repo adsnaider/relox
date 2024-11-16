@@ -1,5 +1,6 @@
 use relox::lox::{
-    ast::{BinaryExpr, Expr, ExprPrinter, Grouping, Literal, UnaryExpr},
+    ast::{BinaryExpr, Expr, Grouping, Literal, UnaryExpr},
+    introspect::AstPrinter,
     lexer::{Lexeme, Token, TokenValue},
 };
 
@@ -30,6 +31,6 @@ fn main() {
             lexeme: Lexeme::new("*", 0),
         },
     }));
-    let mut printer = ExprPrinter;
+    let mut printer = AstPrinter;
     printer.print(&expr);
 }

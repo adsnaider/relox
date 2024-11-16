@@ -1,12 +1,13 @@
 use std::fmt::Display;
 
 use derive_more::{Error, From};
-use interpreter::evaluate;
-use lexer::{LexError, Lexer};
+use interpreter::Interpreter;
+use lexer::{LexError, Lexer, TokenValue};
 use parser::{ParseError, Parser};
 
 pub mod ast;
 pub mod interpreter;
+pub mod introspect;
 pub mod lexer;
 pub mod parser;
 
@@ -48,25 +49,47 @@ impl Display for LoxError<'_> {
                     }
                 }
             }
-            LoxErrorKind::ParseError(ParseError::UnexpectedToken(t)) => {
-                let (line, col) = t.lexeme.find_in_source(&self.content);
-                writeln!(
-                    f,
-                    "Unexpected token \"{}\" at {line}:{col}",
-                    &t.lexeme.payload
-                )?;
-            }
+            LoxErrorKind::ParseError(ParseError::UnexpectedToken(t)) => match t.value {
+                TokenValue::Eof => {
+                    writeln!(f, "Unexpected end of file")?;
+                }
+                _ => {
+                    let (line, col) = t.lexeme.find_in_source(&self.content);
+                    writeln!(
+                        f,
+                        "Unexpected token \"{}\" at {line}:{col}",
+                        &t.lexeme.payload
+                    )?;
+                }
+            },
+            LoxErrorKind::ParseError(ParseError::InvalidAssignment(t)) => match t.value {
+                TokenValue::Eof => {
+                    writeln!(f, "Unexpected end of file")?;
+                }
+                _ => {
+                    let (line, col) = t.lexeme.find_in_source(&self.content);
+                    writeln!(
+                        f,
+                        "Invalid assignment at \"{}\" at {line}:{col}",
+                        &t.lexeme.payload
+                    )?;
+                }
+            },
         }
         Ok(())
     }
 }
 
 /// The `Lox` interpreter
-pub struct Lox {}
+pub struct Lox {
+    interpreter: Interpreter,
+}
 
 impl Lox {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            interpreter: Interpreter::new(),
+        }
     }
 
     pub fn eval<'a>(&mut self, source: &'a str) -> Result<(), LoxError<'a>> {
@@ -81,8 +104,8 @@ impl Lox {
             content: source,
             kind: e.into(),
         })?;
-        match evaluate(&ast) {
-            Ok(value) => println!("{value}"),
+        match self.interpreter.evaluate(&ast) {
+            Ok(value) => print!("{value}"),
             Err(e) => println!("{}", e.display(source)),
         }
         Ok(())
