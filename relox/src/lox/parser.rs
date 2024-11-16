@@ -2,8 +2,8 @@ use crate::lox::lexer::Lexeme;
 
 use super::{
     ast::{
-        Assignment, BinaryExpr, Block, Expr, ExprStmt, Ident, If, Literal, LoxAst, PrintStmt, Stmt,
-        UnaryExpr, VarDecl,
+        Assignment, BinaryExpr, Block, Expr, ExprStmt, Ident, If, Literal, LogicalExpr, LoxAst,
+        PrintStmt, Stmt, UnaryExpr, VarDecl,
     },
     lexer::{Token, TokenValue, TokenVariants},
 };
@@ -143,15 +143,33 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_assignment(&mut self) -> Result<Expr<'a>, ParseError<'a>> {
-        let mut expr = self.parse_equality()?;
+        let mut expr = self.parse_or()?;
         if let Ok(t) = self.eat_matches(&[TokenVariants::Equal]) {
-            let rhs = self.parse_assignment()?;
+            let rhs = self.parse_or()?;
             let Expr::Ident(lhs) = expr else {
                 return Err(ParseError::InvalidAssignment(t));
             };
             expr = Expr::Assignment(Box::new(Assignment { lhs: *lhs, rhs }));
         }
         Ok(expr)
+    }
+
+    pub fn parse_or(&mut self) -> Result<Expr<'a>, ParseError<'a>> {
+        let mut lhs = self.parse_and()?;
+        while let Ok(or) = self.eat_matches(&[TokenVariants::Or]) {
+            let rhs = self.parse_and()?;
+            lhs = Expr::Logical(Box::new(LogicalExpr { lhs, rhs, op: or }));
+        }
+        Ok(lhs)
+    }
+
+    pub fn parse_and(&mut self) -> Result<Expr<'a>, ParseError<'a>> {
+        let mut lhs = self.parse_equality()?;
+        while let Ok(or) = self.eat_matches(&[TokenVariants::And]) {
+            let rhs = self.parse_equality()?;
+            lhs = Expr::Logical(Box::new(LogicalExpr { lhs, rhs, op: or }));
+        }
+        Ok(lhs)
     }
 
     pub fn parse_equality(&mut self) -> Result<Expr<'a>, ParseError<'a>> {

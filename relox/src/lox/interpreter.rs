@@ -372,6 +372,30 @@ impl<'a> AstVisitor<'a> for Interpreter {
             Ok(Value::Void)
         }
     }
+
+    fn visit_logical_expr(&mut self, expr: &ast::LogicalExpr<'a>) -> Self::Output {
+        let lhs = self.visit_expr(&expr.lhs)?;
+
+        match &expr.op.value {
+            TokenValue::And => {
+                if !truthy(&lhs) {
+                    Ok(lhs)
+                } else {
+                    Ok(self.visit_expr(&expr.rhs)?)
+                }
+            }
+            TokenValue::Or => {
+                if truthy(&lhs) {
+                    Ok(lhs)
+                } else {
+                    Ok(self.visit_expr(&expr.rhs)?)
+                }
+            }
+            _ => {
+                unreachable!("Invalid parsed logical expression: {:?}", &expr.op)
+            }
+        }
+    }
 }
 
 impl Interpreter {

@@ -62,6 +62,14 @@ pub enum Expr<'a> {
     Grouping(Box<Grouping<'a>>),
     Ident(Box<Ident<'a>>),
     Assignment(Box<Assignment<'a>>),
+    Logical(Box<LogicalExpr<'a>>),
+}
+
+#[derive(Debug)]
+pub struct LogicalExpr<'a> {
+    pub lhs: Expr<'a>,
+    pub rhs: Expr<'a>,
+    pub op: Token<'a>,
 }
 
 #[derive(Debug)]
@@ -116,6 +124,7 @@ impl<'a> Expr<'a> {
             Expr::Grouping(group) => visitor.visit_group_expr(group),
             Expr::Ident(ident) => visitor.visit_ident(ident),
             Expr::Assignment(assign) => visitor.visit_assign(assign),
+            Expr::Logical(expr) => visitor.visit_logical_expr(expr),
         }
     }
 }
@@ -166,4 +175,5 @@ pub trait AstVisitor<'a>: Sized {
     fn visit_assign(&mut self, assign: &Assignment<'a>) -> Self::Output;
     fn visit_block(&mut self, block: &Block<'a>) -> Self::Output;
     fn visit_if(&mut self, stmt: &If<'a>) -> Self::Output;
+    fn visit_logical_expr(&mut self, expr: &LogicalExpr<'a>) -> Self::Output;
 }

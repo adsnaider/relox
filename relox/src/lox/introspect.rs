@@ -81,4 +81,8 @@ impl<'a> AstVisitor<'a> for AstPrinter {
     fn visit_if(&mut self, stmt: &If<'a>) -> Self::Output {
         todo!()
     }
+
+    fn visit_logical_expr(&mut self, expr: &LogicalExpr<'a>) -> Self::Output {
+        todo!()
+    }
 }
