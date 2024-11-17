@@ -3,7 +3,7 @@ use crate::lox::lexer::Lexeme;
 use super::{
     ast::{
         Assignment, BinaryExpr, Block, Expr, ExprStmt, Ident, If, Literal, LogicalExpr, LoxAst,
-        PrintStmt, Stmt, UnaryExpr, VarDecl,
+        PrintStmt, Stmt, UnaryExpr, VarDecl, While,
     },
     lexer::{Token, TokenValue, TokenVariants},
 };
@@ -78,8 +78,79 @@ impl<'a> Parser<'a> {
     pub fn parse_stmt(&mut self) -> Result<Stmt<'a>, ParseError<'a>> {
         self.try_parse_print_statement()
             .or_else(|| self.try_parse_if_stmt())
+            .or_else(|| self.try_parse_while_stmt())
+            .or_else(|| self.try_parse_for_stmt())
             .or_else(|| self.try_parse_block())
             .unwrap_or_else(|| self.parse_expr_statement())
+    }
+
+    pub fn try_parse_for_stmt(&mut self) -> Option<Result<Stmt<'a>, ParseError<'a>>> {
+        self.eat_matches(&[TokenVariants::For]).ok()?;
+        let mut inner = || {
+            self.eat_matches(&[TokenVariants::LeftParen])?;
+            let init = if let Some(stmt) = self.try_parse_var_decl().transpose()? {
+                Some(stmt)
+            } else if let Ok(_) = self.eat_matches(&[TokenVariants::Semicolon]) {
+                None
+            } else {
+                Some(self.parse_expr_statement()?)
+            };
+
+            let cond = if self.eat_matches(&[TokenVariants::Semicolon]).is_ok() {
+                None
+            } else {
+                let cond = self.parse_expr()?;
+                self.eat_matches(&[TokenVariants::Semicolon])?;
+                Some(cond)
+            };
+
+            let increment = if self.eat_matches(&[TokenVariants::RightParen]).is_ok() {
+                None
+            } else {
+                let inc = self.parse_expr()?;
+                self.eat_matches(&[TokenVariants::RightParen])?;
+                Some(inc)
+            };
+            let body = self.parse_stmt()?;
+
+            let body = {
+                let mut body = vec![body];
+                if let Some(increment) = increment {
+                    body.push(Stmt::Expr(Box::new(ExprStmt { expr: increment })));
+                }
+                Stmt::Block(Box::new(Block { stmts: body }))
+            };
+            let block = {
+                let mut stmts = Vec::new();
+                if let Some(init) = init {
+                    stmts.push(init);
+                }
+                let cond = cond.unwrap_or_else(|| {
+                    Expr::Literal(Box::new(Literal {
+                        value: Token {
+                            value: TokenValue::True,
+                            lexeme: Lexeme::from_str("", 0),
+                        },
+                    }))
+                });
+                stmts.push(Stmt::While(Box::new(While { cond, body })));
+                Stmt::Block(Box::new(Block { stmts }))
+            };
+            Ok(block)
+        };
+        Some(inner())
+    }
+    pub fn try_parse_while_stmt(&mut self) -> Option<Result<Stmt<'a>, ParseError<'a>>> {
+        self.eat_matches(&[TokenVariants::While]).ok()?;
+        let mut inner = || {
+            self.eat_matches(&[TokenVariants::LeftParen])?;
+            let cond = self.parse_expr()?;
+            self.eat_matches(&[TokenVariants::RightParen])?;
+            let body = self.parse_stmt()?;
+
+            Ok(Stmt::While(Box::new(While { cond, body })))
+        };
+        Some(inner())
     }
 
     pub fn try_parse_if_stmt(&mut self) -> Option<Result<Stmt<'a>, ParseError<'a>>> {

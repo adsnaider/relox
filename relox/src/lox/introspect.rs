@@ -85,4 +85,8 @@ impl<'a> AstVisitor<'a> for AstPrinter {
     fn visit_logical_expr(&mut self, expr: &LogicalExpr<'a>) -> Self::Output {
         todo!()
     }
+
+    fn visit_while(&mut self, stmt: &While<'a>) -> Self::Output {
+        todo!()
+    }
 }

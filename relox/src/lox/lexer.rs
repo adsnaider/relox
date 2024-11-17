@@ -248,12 +248,12 @@ impl<'a> Lexeme<'a> {
 
     pub fn find_in_source(&self, content: &'a str) -> (usize, usize) {
         let offset = self.source_offset;
-        let mut line = 0;
-        let mut col = 0;
+        let mut line = 1;
+        let mut col = 1;
         content.chars().take(offset).for_each(|c| {
             if c == '\n' {
                 line += 1;
-                col = 0;
+                col = 1;
             } else {
                 col += 1;
             }

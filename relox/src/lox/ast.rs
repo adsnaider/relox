@@ -14,6 +14,13 @@ pub enum Stmt<'a> {
     VarDecl(Box<VarDecl<'a>>),
     Block(Box<Block<'a>>),
     If(Box<If<'a>>),
+    While(Box<While<'a>>),
+}
+
+#[derive(Debug)]
+pub struct While<'a> {
+    pub cond: Expr<'a>,
+    pub body: Stmt<'a>,
 }
 
 #[derive(Debug)]
@@ -137,6 +144,7 @@ impl<'a> Stmt<'a> {
             Stmt::VarDecl(d) => visitor.visit_var_decl(d),
             Stmt::Block(b) => visitor.visit_block(b),
             Stmt::If(stmt) => visitor.visit_if(stmt),
+            Stmt::While(stmt) => visitor.visit_while(stmt),
         }
     }
 }
@@ -176,4 +184,5 @@ pub trait AstVisitor<'a>: Sized {
     fn visit_block(&mut self, block: &Block<'a>) -> Self::Output;
     fn visit_if(&mut self, stmt: &If<'a>) -> Self::Output;
     fn visit_logical_expr(&mut self, expr: &LogicalExpr<'a>) -> Self::Output;
+    fn visit_while(&mut self, stmt: &While<'a>) -> Self::Output;
 }

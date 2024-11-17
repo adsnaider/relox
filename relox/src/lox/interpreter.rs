@@ -396,6 +396,13 @@ impl<'a> AstVisitor<'a> for Interpreter {
             }
         }
     }
+
+    fn visit_while(&mut self, stmt: &ast::While<'a>) -> Self::Output {
+        while truthy(&self.visit_expr(&stmt.cond)?) {
+            self.visit_stmt(&stmt.body)?;
+        }
+        Ok(Value::Void)
+    }
 }
 
 impl Interpreter {
