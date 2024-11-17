@@ -75,6 +75,18 @@ impl Display for LoxError<'_> {
                     )?;
                 }
             },
+            LoxErrorKind::ParseError(ParseError::ArgumentCountExceeded(t)) => match t.value {
+                TokenValue::Eof => {
+                    writeln!(f, "Unexpected end of file")?;
+                }
+                _ => {
+                    let (line, col) = t.lexeme.find_in_source(&self.content);
+                    writeln!(
+                        f,
+                        "Maximum allowed number of arguments exceeded at {line}:{col}",
+                    )?;
+                }
+            },
         }
         Ok(())
     }

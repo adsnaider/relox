@@ -70,6 +70,13 @@ pub enum Expr<'a> {
     Ident(Box<Ident<'a>>),
     Assignment(Box<Assignment<'a>>),
     Logical(Box<LogicalExpr<'a>>),
+    Call(Box<Call<'a>>),
+}
+
+#[derive(Debug)]
+pub struct Call<'a> {
+    pub callee: Expr<'a>,
+    pub args: Vec<Expr<'a>>,
 }
 
 #[derive(Debug)]
@@ -132,6 +139,7 @@ impl<'a> Expr<'a> {
             Expr::Ident(ident) => visitor.visit_ident(ident),
             Expr::Assignment(assign) => visitor.visit_assign(assign),
             Expr::Logical(expr) => visitor.visit_logical_expr(expr),
+            Expr::Call(call) => visitor.visit_call(call),
         }
     }
 }
@@ -185,4 +193,5 @@ pub trait AstVisitor<'a>: Sized {
     fn visit_if(&mut self, stmt: &If<'a>) -> Self::Output;
     fn visit_logical_expr(&mut self, expr: &LogicalExpr<'a>) -> Self::Output;
     fn visit_while(&mut self, stmt: &While<'a>) -> Self::Output;
+    fn visit_call(&mut self, call: &Call<'a>) -> Self::Output;
 }

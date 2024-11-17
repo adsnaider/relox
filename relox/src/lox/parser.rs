@@ -2,8 +2,8 @@ use crate::lox::lexer::Lexeme;
 
 use super::{
     ast::{
-        Assignment, BinaryExpr, Block, Expr, ExprStmt, Ident, If, Literal, LogicalExpr, LoxAst,
-        PrintStmt, Stmt, UnaryExpr, VarDecl, While,
+        Assignment, BinaryExpr, Block, Call, Expr, ExprStmt, Ident, If, Literal, LogicalExpr,
+        LoxAst, PrintStmt, Stmt, UnaryExpr, VarDecl, While,
     },
     lexer::{Token, TokenValue, TokenVariants},
 };
@@ -17,6 +17,7 @@ pub struct Parser<'a> {
 pub enum ParseError<'a> {
     UnexpectedToken(Token<'a>),
     InvalidAssignment(Token<'a>),
+    ArgumentCountExceeded(Token<'a>),
 }
 
 impl ParseError<'_> {
@@ -24,6 +25,7 @@ impl ParseError<'_> {
         match self {
             ParseError::UnexpectedToken(t) => ParseError::UnexpectedToken(t.to_owned()),
             ParseError::InvalidAssignment(t) => ParseError::InvalidAssignment(t.to_owned()),
+            ParseError::ArgumentCountExceeded(t) => ParseError::ArgumentCountExceeded(t.to_owned()),
         }
     }
 }
@@ -293,11 +295,32 @@ impl<'a> Parser<'a> {
 
     pub fn parse_unary(&mut self) -> Result<Expr<'a>, ParseError<'a>> {
         if let Ok(op) = self.eat_if(|t| matches!(t.value, TokenValue::Bang | TokenValue::Minus)) {
-            let rhs = self.parse_unary()?;
+            let rhs = self.parse_call()?;
             Ok(Expr::Unary(Box::new(UnaryExpr { op, rhs })))
         } else {
-            self.parse_primary()
+            self.parse_call()
         }
+    }
+
+    pub fn parse_call(&mut self) -> Result<Expr<'a>, ParseError<'a>> {
+        let mut lhs = self.parse_primary()?;
+        while self.eat_matches(&[TokenVariants::LeftParen]).is_ok() {
+            let mut args = Vec::new();
+            if self.eat_matches(&[TokenVariants::RightParen]).is_err() {
+                loop {
+                    args.push(self.parse_primary()?);
+                    if self.eat_matches(&[TokenVariants::Comma]).is_err() {
+                        break;
+                    }
+                }
+                self.eat_matches(&[TokenVariants::RightParen])?;
+            }
+            if args.len() >= 255 {
+                return Err(ParseError::ArgumentCountExceeded(self.peekn(0).clone()));
+            }
+            lhs = Expr::Call(Box::new(Call { callee: lhs, args }))
+        }
+        Ok(lhs)
     }
 
     pub fn parse_primary(&mut self) -> Result<Expr<'a>, ParseError<'a>> {

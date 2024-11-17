@@ -8,6 +8,6 @@ default-run = "cli"
 anyhow = "1.0.92"
 clap = { version = "4.5.20", features = ["derive"] }
 ctrlc = "3.4.5"
-derive_more = { version = "1.0.0", features = ["error", "from"] }
+derive_more = { version = "1.0.0", features = ["error", "from", "display"] }
 strum = { version = "0.26.3", features = ["derive"] }
 thiserror = "2.0.1"

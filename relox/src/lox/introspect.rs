@@ -89,4 +89,8 @@ impl<'a> AstVisitor<'a> for AstPrinter {
     fn visit_while(&mut self, stmt: &While<'a>) -> Self::Output {
         todo!()
     }
+
+    fn visit_call(&mut self, call: &Call<'a>) -> Self::Output {
+        todo!()
+    }
 }

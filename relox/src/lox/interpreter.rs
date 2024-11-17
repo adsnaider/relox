@@ -1,21 +1,36 @@
 use std::{
     collections::HashMap,
     fmt::{self, Display},
+    rc::Rc,
+    time::SystemTime,
 };
+
+use derive_more::derive::Display;
+use strum::EnumDiscriminants;
 
 use super::{
     ast::{self, AstVisitor, Expr, Ident},
     lexer::{Token, TokenValue},
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, EnumDiscriminants)]
 pub enum Value {
     String(String),
     Number(f64),
     Bool(bool),
     Object(Object),
+    Func(Rc<dyn LoxCallable>),
     Nil,
     Void,
+}
+
+pub trait LoxCallable: core::fmt::Debug + Display {
+    fn arity(&self) -> usize;
+    fn call<'a>(
+        &self,
+        interpreter: &mut Interpreter,
+        args: &[Value],
+    ) -> Result<Value, RuntimeError<'static>>;
 }
 
 impl Display for Value {
@@ -27,6 +42,7 @@ impl Display for Value {
             Value::Object(o) => write!(f, "{o}"),
             Value::Nil => write!(f, "nil"),
             Value::Void => Ok(()),
+            Value::Func(fun) => write!(f, "{fun}"),
         }
     }
 }
@@ -43,15 +59,31 @@ impl Display for Object {
 #[derive(Debug)]
 pub struct RuntimeError<'a> {
     token: Token<'a>,
-    msg: &'static str,
+    msg: String,
     kind: RErrorKind,
 }
 
 impl<'a> RuntimeError<'a> {
+    pub fn argument_mismatch(token: Token<'a>, wants: usize, got: usize) -> Self {
+        Self {
+            token,
+            msg: format!("Expected function call with {wants} arguments, but got {got}."),
+            kind: RErrorKind::ArgumentMismatch,
+        }
+    }
+
+    pub fn type_error(token: Token<'a>, value: &Value, wanted: &[ValueDiscriminants]) -> Self {
+        Self {
+            token,
+            msg: format!("Expected one of {wanted:?} but got {value:?}"),
+            kind: RErrorKind::TypeError,
+        }
+    }
+
     pub fn undefined(ident: Ident<'a>) -> Self {
         Self {
             token: ident.ident,
-            msg: "Undefined reference to variable",
+            msg: "Undefined reference to variable".to_owned(),
             kind: RErrorKind::Undefined,
         }
     }
@@ -74,8 +106,12 @@ impl Display for RichRuntimeError<'_, '_> {
 }
 
 impl<'src> RuntimeError<'src> {
-    pub fn new(token: Token<'src>, msg: &'static str, kind: RErrorKind) -> Self {
-        Self { token, msg, kind }
+    pub fn new(token: Token<'src>, msg: impl Into<String>, kind: RErrorKind) -> Self {
+        Self {
+            token,
+            msg: msg.into(),
+            kind,
+        }
     }
 
     pub fn display<'a>(&'a self, src: &'src str) -> impl Display + 'a {
@@ -86,19 +122,14 @@ impl<'src> RuntimeError<'src> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Display)]
 pub enum RErrorKind {
+    #[display("TypeError")]
     TypeError,
+    #[display("Undefined")]
     Undefined,
-}
-
-impl Display for RErrorKind {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            RErrorKind::TypeError => write!(f, "TypeError"),
-            RErrorKind::Undefined => write!(f, "Undefined"),
-        }
-    }
+    #[display("ArgumentMismatch")]
+    ArgumentMismatch,
 }
 
 #[derive(Default)]
@@ -180,11 +211,33 @@ pub struct Interpreter {
     environment: Env,
 }
 
+#[derive(Debug, Display)]
+#[display("<native fn>")]
+struct Clock {}
+
+impl LoxCallable for Clock {
+    fn arity(&self) -> usize {
+        0
+    }
+
+    fn call(
+        &self,
+        _interpreter: &mut Interpreter,
+        _args: &[Value],
+    ) -> Result<Value, RuntimeError<'static>> {
+        let millis = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_millis();
+        Ok(Value::Number(millis as f64))
+    }
+}
+
 impl Interpreter {
     pub fn new() -> Self {
-        Self {
-            environment: Env::new(),
-        }
+        let mut env = Env::new();
+        env.declare("clock".to_owned(), Value::Func(Rc::new(Clock {})));
+        Self { environment: env }
     }
 
     pub fn evaluate<'a>(&mut self, ast: &ast::LoxAst<'a>) -> Result<Value, RuntimeError<'a>> {
@@ -402,6 +455,33 @@ impl<'a> AstVisitor<'a> for Interpreter {
             self.visit_stmt(&stmt.body)?;
         }
         Ok(Value::Void)
+    }
+
+    fn visit_call(&mut self, call: &ast::Call<'a>) -> Self::Output {
+        let callee = self.visit_expr(&call.callee)?;
+        let args = call
+            .args
+            .iter()
+            .map(|arg| self.visit_expr(arg))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let Value::Func(fun) = callee else {
+            return Err(RuntimeError::type_error(
+                todo!(),
+                &callee,
+                &[ValueDiscriminants::Func],
+            ));
+        };
+
+        if fun.arity() != args.len() {
+            return Err(RuntimeError::argument_mismatch(
+                todo!(),
+                fun.arity(),
+                args.len(),
+            ));
+        }
+
+        fun.call(self, &args)
     }
 }
 
