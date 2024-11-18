@@ -1,0 +1,4 @@
+[workspace]
+members = ["relox"]
+resolver = "2"
+default-members = ["relox"]

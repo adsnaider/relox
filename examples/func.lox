@@ -1,0 +1,11 @@
+fun sayHi(first, last) {
+  print "Hi, " + first + " " + last + "!";
+  if (first != "Dear") {
+    return "Yay";
+  } else {
+    return "Nay";
+  }
+}
+
+var result = sayHi("Dear", "Reader");
+print "Result: " + result;
