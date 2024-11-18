@@ -2,14 +2,14 @@
 
 use super::lexer::{Token, TokenValue};
 
-use burrow::Burrow;
+use ownit::Ownit;
 
-#[derive(Debug, Clone, Burrow)]
+#[derive(Debug, Clone, Ownit)]
 pub struct LoxAst<'a> {
     pub statements: Vec<Stmt<'a>>,
 }
 
-#[derive(Debug, Clone, Burrow)]
+#[derive(Debug, Clone, Ownit)]
 pub enum Stmt<'a> {
     Print(Box<PrintStmt<'a>>),
     Expr(Box<ExprStmt<'a>>),
@@ -20,32 +20,32 @@ pub enum Stmt<'a> {
     FunDecl(Box<FunDecl<'a>>),
 }
 
-#[derive(Debug, Clone, Burrow)]
+#[derive(Debug, Clone, Ownit)]
 pub struct FunDecl<'a> {
     pub name: Ident<'a>,
     pub params: Vec<Ident<'a>>,
     pub body: Block<'a>,
 }
 
-#[derive(Debug, Clone, Burrow)]
+#[derive(Debug, Clone, Ownit)]
 pub struct While<'a> {
     pub cond: Expr<'a>,
     pub body: Stmt<'a>,
 }
 
-#[derive(Debug, Clone, Burrow)]
+#[derive(Debug, Clone, Ownit)]
 pub struct If<'a> {
     pub cond: Expr<'a>,
     pub then: Stmt<'a>,
     pub alt: Option<Stmt<'a>>,
 }
 
-#[derive(Debug, Clone, Burrow)]
+#[derive(Debug, Clone, Ownit)]
 pub struct Block<'a> {
     pub stmts: Vec<Stmt<'a>>,
 }
 
-#[derive(Debug, Clone, Burrow)]
+#[derive(Debug, Clone, Ownit)]
 pub struct VarDecl<'a> {
     pub ident: Ident<'a>,
     pub rhs: Option<Expr<'a>>,
@@ -61,17 +61,17 @@ impl<'a> VarDecl<'a> {
     }
 }
 
-#[derive(Debug, Clone, Burrow)]
+#[derive(Debug, Clone, Ownit)]
 pub struct PrintStmt<'a> {
     pub expr: Expr<'a>,
 }
 
-#[derive(Debug, Clone, Burrow)]
+#[derive(Debug, Clone, Ownit)]
 pub struct ExprStmt<'a> {
     pub expr: Expr<'a>,
 }
 
-#[derive(Debug, Clone, Burrow)]
+#[derive(Debug, Clone, Ownit)]
 pub enum Expr<'a> {
     Literal(Box<Literal<'a>>),
     Unary(Box<UnaryExpr<'a>>),
@@ -83,26 +83,26 @@ pub enum Expr<'a> {
     Call(Box<Call<'a>>),
 }
 
-#[derive(Debug, Clone, Burrow)]
+#[derive(Debug, Clone, Ownit)]
 pub struct Call<'a> {
     pub callee: Expr<'a>,
     pub args: Vec<Expr<'a>>,
 }
 
-#[derive(Debug, Clone, Burrow)]
+#[derive(Debug, Clone, Ownit)]
 pub struct LogicalExpr<'a> {
     pub lhs: Expr<'a>,
     pub rhs: Expr<'a>,
     pub op: Token<'a>,
 }
 
-#[derive(Debug, Clone, Burrow)]
+#[derive(Debug, Clone, Ownit)]
 pub struct Assignment<'a> {
     pub lhs: Ident<'a>,
     pub rhs: Expr<'a>,
 }
 
-#[derive(Debug, Clone, Burrow)]
+#[derive(Debug, Clone, Ownit)]
 pub struct Ident<'a> {
     pub ident: Token<'a>,
 }
@@ -116,25 +116,25 @@ impl<'a> Ident<'a> {
     }
 }
 
-#[derive(Debug, Clone, Burrow)]
+#[derive(Debug, Clone, Ownit)]
 pub struct Literal<'a> {
     pub value: Token<'a>,
 }
 
-#[derive(Debug, Clone, Burrow)]
+#[derive(Debug, Clone, Ownit)]
 pub struct UnaryExpr<'a> {
     pub op: Token<'a>,
     pub rhs: Expr<'a>,
 }
 
-#[derive(Debug, Clone, Burrow)]
+#[derive(Debug, Clone, Ownit)]
 pub struct BinaryExpr<'a> {
     pub lhs: Expr<'a>,
     pub rhs: Expr<'a>,
     pub op: Token<'a>,
 }
 
-#[derive(Debug, Clone, Burrow)]
+#[derive(Debug, Clone, Ownit)]
 pub struct Grouping<'a> {
     pub expr: Expr<'a>,
 }

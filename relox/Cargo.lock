@@ -64,22 +64,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b048fb63fd8b5923fc5aa7b340d8e156aec7ec02f0c78fa8a6ddc2613f6f71de"
 
 [[package]]
-name = "burrow"
-version = "0.1.0"
-dependencies = [
- "burrow_derive",
-]
-
-[[package]]
-name = "burrow_derive"
-version = "0.1.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "cfg-if"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -199,6 +183,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "ownit"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ce6d8bfbef98ea0b259d2f59775914070da860652cbc45fed0f6ea236730c7a9"
+dependencies = [
+ "ownit-derive",
+]
+
+[[package]]
+name = "ownit-derive"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f8132c3efa9e771cb672c19d704560e46d6bbf13245ddbf28a2e30f0d53efd3f"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "proc-macro2"
 version = "1.0.89"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -221,10 +225,10 @@ name = "relox"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "burrow",
  "clap",
  "ctrlc",
  "derive_more",
+ "ownit",
  "strum",
  "thiserror",
 ]

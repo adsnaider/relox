@@ -5,7 +5,7 @@ use std::{
     time::SystemTime,
 };
 
-use burrow::Burrow;
+use ownit::Ownit;
 use derive_more::derive::Display;
 use strum::EnumDiscriminants;
 
@@ -48,7 +48,7 @@ impl Display for Value {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Clone, Burrow)]
+#[derive(Debug, Eq, PartialEq, Clone, Ownit)]
 pub struct Object {}
 
 impl Display for Object {
