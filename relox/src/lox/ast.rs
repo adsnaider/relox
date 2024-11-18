@@ -2,12 +2,14 @@
 
 use super::lexer::{Token, TokenValue};
 
-#[derive(Debug)]
+use burrow::Burrow;
+
+#[derive(Debug, Clone, Burrow)]
 pub struct LoxAst<'a> {
     pub statements: Vec<Stmt<'a>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Burrow)]
 pub enum Stmt<'a> {
     Print(Box<PrintStmt<'a>>),
     Expr(Box<ExprStmt<'a>>),
@@ -15,27 +17,35 @@ pub enum Stmt<'a> {
     Block(Box<Block<'a>>),
     If(Box<If<'a>>),
     While(Box<While<'a>>),
+    FunDecl(Box<FunDecl<'a>>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Burrow)]
+pub struct FunDecl<'a> {
+    pub name: Ident<'a>,
+    pub params: Vec<Ident<'a>>,
+    pub body: Block<'a>,
+}
+
+#[derive(Debug, Clone, Burrow)]
 pub struct While<'a> {
     pub cond: Expr<'a>,
     pub body: Stmt<'a>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Burrow)]
 pub struct If<'a> {
     pub cond: Expr<'a>,
     pub then: Stmt<'a>,
     pub alt: Option<Stmt<'a>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Burrow)]
 pub struct Block<'a> {
     pub stmts: Vec<Stmt<'a>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Burrow)]
 pub struct VarDecl<'a> {
     pub ident: Ident<'a>,
     pub rhs: Option<Expr<'a>>,
@@ -51,17 +61,17 @@ impl<'a> VarDecl<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Burrow)]
 pub struct PrintStmt<'a> {
     pub expr: Expr<'a>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Burrow)]
 pub struct ExprStmt<'a> {
     pub expr: Expr<'a>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Burrow)]
 pub enum Expr<'a> {
     Literal(Box<Literal<'a>>),
     Unary(Box<UnaryExpr<'a>>),
@@ -73,26 +83,26 @@ pub enum Expr<'a> {
     Call(Box<Call<'a>>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Burrow)]
 pub struct Call<'a> {
     pub callee: Expr<'a>,
     pub args: Vec<Expr<'a>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Burrow)]
 pub struct LogicalExpr<'a> {
     pub lhs: Expr<'a>,
     pub rhs: Expr<'a>,
     pub op: Token<'a>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Burrow)]
 pub struct Assignment<'a> {
     pub lhs: Ident<'a>,
     pub rhs: Expr<'a>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Burrow)]
 pub struct Ident<'a> {
     pub ident: Token<'a>,
 }
@@ -106,25 +116,25 @@ impl<'a> Ident<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Burrow)]
 pub struct Literal<'a> {
     pub value: Token<'a>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Burrow)]
 pub struct UnaryExpr<'a> {
     pub op: Token<'a>,
     pub rhs: Expr<'a>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Burrow)]
 pub struct BinaryExpr<'a> {
     pub lhs: Expr<'a>,
     pub rhs: Expr<'a>,
     pub op: Token<'a>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Burrow)]
 pub struct Grouping<'a> {
     pub expr: Expr<'a>,
 }
@@ -153,6 +163,7 @@ impl<'a> Stmt<'a> {
             Stmt::Block(b) => visitor.visit_block(b),
             Stmt::If(stmt) => visitor.visit_if(stmt),
             Stmt::While(stmt) => visitor.visit_while(stmt),
+            Stmt::FunDecl(d) => visitor.visit_fun_decl(d),
         }
     }
 }
@@ -194,4 +205,5 @@ pub trait AstVisitor<'a>: Sized {
     fn visit_logical_expr(&mut self, expr: &LogicalExpr<'a>) -> Self::Output;
     fn visit_while(&mut self, stmt: &While<'a>) -> Self::Output;
     fn visit_call(&mut self, call: &Call<'a>) -> Self::Output;
+    fn visit_fun_decl(&mut self, call: &FunDecl<'a>) -> Self::Output;
 }

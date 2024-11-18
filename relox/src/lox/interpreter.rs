@@ -5,11 +5,12 @@ use std::{
     time::SystemTime,
 };
 
+use burrow::Burrow;
 use derive_more::derive::Display;
 use strum::EnumDiscriminants;
 
 use super::{
-    ast::{self, AstVisitor, Expr, Ident},
+    ast::{self, AstVisitor, Block, Expr, FunDecl, Ident},
     lexer::{Token, TokenValue},
 };
 
@@ -26,7 +27,7 @@ pub enum Value {
 
 pub trait LoxCallable: core::fmt::Debug + Display {
     fn arity(&self) -> usize;
-    fn call<'a>(
+    fn call(
         &self,
         interpreter: &mut Interpreter,
         args: &[Value],
@@ -47,7 +48,7 @@ impl Display for Value {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone, Burrow)]
 pub struct Object {}
 
 impl Display for Object {
@@ -132,8 +133,8 @@ pub enum RErrorKind {
     ArgumentMismatch,
 }
 
-#[derive(Default)]
-struct Scope {
+#[derive(Default, Clone)]
+pub struct Scope {
     vars: HashMap<String, Value>,
 }
 
@@ -160,6 +161,16 @@ impl Env {
         Self {
             scopes: vec![Scope::default()],
         }
+    }
+
+    pub fn globals(&self) -> &Scope {
+        self.scopes.first().expect("We always have a global scope")
+    }
+
+    pub fn globals_mut(&mut self) -> &mut Scope {
+        self.scopes
+            .first_mut()
+            .expect("We always have a global scope")
     }
 
     pub fn declare(&mut self, var: String, value: Value) {
@@ -458,6 +469,7 @@ impl<'a> AstVisitor<'a> for Interpreter {
     }
 
     fn visit_call(&mut self, call: &ast::Call<'a>) -> Self::Output {
+        #![allow(unreachable_code)]
         let callee = self.visit_expr(&call.callee)?;
         let args = call
             .args
@@ -483,6 +495,55 @@ impl<'a> AstVisitor<'a> for Interpreter {
 
         fun.call(self, &args)
     }
+
+    fn visit_fun_decl(&mut self, decl: &FunDecl<'a>) -> Self::Output {
+        let name = decl.name.name();
+        let params = decl.params.iter().map(|p| p.name()).collect();
+        self.environment.declare(
+            name.clone(),
+            Value::Func(Rc::new(LoxFunc {
+                name,
+                params,
+                body: decl.body.clone().into_static(),
+            })),
+        );
+        Ok(Value::Void)
+    }
+}
+
+#[derive(Debug, Display)]
+#[display("<fun {name}>")]
+pub struct LoxFunc {
+    name: String,
+    params: Vec<String>,
+    body: Block<'static>,
+}
+
+impl LoxCallable for LoxFunc {
+    fn arity(&self) -> usize {
+        self.params.len()
+    }
+
+    fn call(
+        &self,
+        interpreter: &mut Interpreter,
+        args: &[Value],
+    ) -> Result<Value, RuntimeError<'static>> {
+        #![allow(unreachable_code)]
+        if args.len() != self.arity() {
+            return Err(RuntimeError::argument_mismatch(
+                todo!(),
+                self.arity(),
+                args.len(),
+            ));
+        }
+        interpreter.disjoint_scope(|interpreter| {
+            for (param, arg) in self.params.iter().cloned().zip(args.iter().cloned()) {
+                interpreter.environment.declare(param, arg);
+            }
+            interpreter.visit_block(&self.body)
+        })
+    }
 }
 
 impl Interpreter {
@@ -493,6 +554,18 @@ impl Interpreter {
         self.environment.enter_scope();
         let out = f(self);
         self.environment.exit_scope();
+        out
+    }
+
+    pub fn disjoint_scope<F, T>(&mut self, f: F) -> T
+    where
+        F: FnOnce(&mut Self) -> T,
+    {
+        let mut env = Env::new();
+        *env.globals_mut() = self.environment.globals().clone();
+        core::mem::swap(&mut env, &mut self.environment);
+        let out = f(self);
+        core::mem::swap(&mut env, &mut self.environment);
         out
     }
 }

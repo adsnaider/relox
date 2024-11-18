@@ -2,8 +2,8 @@ use crate::lox::lexer::Lexeme;
 
 use super::{
     ast::{
-        Assignment, BinaryExpr, Block, Call, Expr, ExprStmt, Ident, If, Literal, LogicalExpr,
-        LoxAst, PrintStmt, Stmt, UnaryExpr, VarDecl, While,
+        Assignment, BinaryExpr, Block, Call, Expr, ExprStmt, FunDecl, Ident, If, Literal,
+        LogicalExpr, LoxAst, PrintStmt, Stmt, UnaryExpr, VarDecl, While,
     },
     lexer::{Token, TokenValue, TokenVariants},
 };
@@ -48,12 +48,42 @@ impl<'a> Parser<'a> {
 
     pub fn parse_decl(&mut self) -> Result<Stmt<'a>, ParseError<'a>> {
         self.try_parse_var_decl()
+            .or_else(|| self.try_parse_fn_decl())
             .unwrap_or_else(|| self.parse_stmt())
     }
 
     pub fn parse_var_decl(&mut self) -> Result<Stmt<'a>, ParseError<'a>> {
         self.try_parse_var_decl()
             .ok_or_else(|| ParseError::UnexpectedToken(self.peekn(0).clone()))?
+    }
+
+    pub fn try_parse_fn_decl(&mut self) -> Option<Result<Stmt<'a>, ParseError<'a>>> {
+        self.eat_matches(&[TokenVariants::Fun]).ok()?;
+        let mut inner = || {
+            let name = self.eat_matches(&[TokenVariants::Ident])?;
+            self.eat_matches(&[TokenVariants::LeftParen])?;
+            let mut params = Vec::new();
+
+            loop {
+                let param = self.eat_matches(&[TokenVariants::Ident])?;
+                params.push(Ident { ident: param });
+                if self.eat_matches(&[TokenVariants::Comma]).is_err() {
+                    break;
+                }
+            }
+
+            self.eat_matches(&[TokenVariants::RightParen])?;
+
+            let Stmt::Block(body) = self.parse_block()? else {
+                unreachable!();
+            };
+            Ok(Stmt::FunDecl(Box::new(FunDecl {
+                name: Ident { ident: name },
+                params,
+                body: *body,
+            })))
+        };
+        Some(inner())
     }
 
     pub fn try_parse_var_decl(&mut self) -> Option<Result<Stmt<'a>, ParseError<'a>>> {

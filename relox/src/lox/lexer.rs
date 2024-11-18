@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+use burrow::Burrow;
 use strum::EnumDiscriminants;
 
 /// Lexer for the Lox language
@@ -221,7 +222,7 @@ const fn reserved_keywords(keyword: &[u8]) -> Option<TokenValue> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Burrow)]
 pub struct Lexeme<'a> {
     pub payload: Cow<'a, str>,
     pub source_offset: usize,
@@ -276,13 +277,13 @@ impl<'a> Lexeme<'a> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Burrow)]
 pub struct Token<'a> {
     pub value: TokenValue,
     pub lexeme: Lexeme<'a>,
 }
 
-#[derive(Debug, Clone, EnumDiscriminants)]
+#[derive(Debug, Clone, EnumDiscriminants, Burrow)]
 #[strum_discriminants(name(TokenVariants))]
 pub enum TokenValue {
     LeftParen,

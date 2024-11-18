@@ -11,3 +11,4 @@ ctrlc = "3.4.5"
 derive_more = { version = "1.0.0", features = ["error", "from", "display"] }
 strum = { version = "0.26.3", features = ["derive"] }
 thiserror = "2.0.1"
+burrow = { path = "../../burrow/burrow" }
