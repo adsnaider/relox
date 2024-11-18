@@ -1,4 +1,5 @@
 use std::{
+    cell::RefCell,
     collections::HashMap,
     fmt::{self, Display},
     rc::Rc,
@@ -65,17 +66,17 @@ pub struct RuntimeError<'a> {
 }
 
 impl<'a> RuntimeError<'a> {
-    pub fn argument_mismatch(token: Token<'a>, wants: usize, got: usize) -> Self {
+    pub fn argument_mismatch(wants: usize, got: usize) -> Self {
         Self {
-            token: Some(token),
+            token: None,
             msg: format!("Expected function call with {wants} arguments, but got {got}."),
             kind: RErrorKind::ArgumentMismatch,
         }
     }
 
-    pub fn type_error(token: Token<'a>, value: &Value, wanted: &[ValueDiscriminants]) -> Self {
+    pub fn type_error(value: &Value, wanted: &[ValueDiscriminants]) -> Self {
         Self {
-            token: Some(token),
+            token: None,
             msg: format!("Expected one of {wanted:?} but got {value:?}"),
             kind: RErrorKind::TypeError,
         }
@@ -147,25 +148,34 @@ pub enum RErrorKind {
     ReturnException(Value),
 }
 
-#[derive(Default, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct Scope {
-    vars: HashMap<String, Value>,
+    vars: HashMap<String, Rc<RefCell<Value>>>,
 }
+
+#[derive(Debug)]
+pub struct NotFound(Value);
 
 impl Scope {
-    pub fn declare(&mut self, var: String, value: Value) {
-        self.vars.insert(var, value);
+    pub fn get(&self, var: &str) -> Option<Value> {
+        self.vars.get(var).map(|v| v.borrow().clone())
     }
 
-    pub fn get<'a>(&'a self, var: &str) -> Option<&'a Value> {
-        self.vars.get(var)
+    pub fn set(&self, var: &str, value: Value) -> Result<(), NotFound> {
+        if let Some(val) = self.vars.get(var) {
+            *val.borrow_mut() = value;
+            Ok(())
+        } else {
+            Err(NotFound(value))
+        }
     }
 
-    pub fn get_mut<'a>(&'a mut self, var: &str) -> Option<&'a mut Value> {
-        self.vars.get_mut(var)
+    pub fn declare(&mut self, var: impl Into<String>, value: Value) {
+        self.vars.insert(var.into(), Rc::new(RefCell::new(value)));
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct Env {
     scopes: Vec<Scope>,
 }
@@ -213,7 +223,7 @@ impl Env {
         }
     }
 
-    pub fn get<'a>(&'a self, var: &str) -> Option<&'a Value> {
+    pub fn get(&self, var: &str) -> Option<Value> {
         for scope in self.scopes.iter().rev() {
             if let Some(value) = scope.get(var) {
                 return Some(value);
@@ -222,13 +232,14 @@ impl Env {
         None
     }
 
-    pub fn get_mut<'a>(&'a mut self, var: &str) -> Option<&'a mut Value> {
-        for scope in self.scopes.iter_mut().rev() {
-            if let Some(value) = scope.get_mut(var) {
-                return Some(value);
+    pub fn set(&self, var: &str, mut value: Value) -> Result<(), NotFound> {
+        for scope in self.scopes.iter().rev() {
+            match scope.set(var, value) {
+                Ok(()) => return Ok(()),
+                Err(NotFound(v)) => value = v,
             }
         }
-        None
+        Err(NotFound(value))
     }
 }
 
@@ -437,17 +448,16 @@ impl<'a> AstVisitor<'a> for Interpreter {
 
     fn visit_ident(&mut self, ident: &ast::Ident<'a>) -> Self::Output {
         match self.environment.get(&ident.name()) {
-            Some(v) => Ok(v.clone()),
+            Some(v) => Ok(v),
             None => Err(RuntimeError::undefined(ident.clone())),
         }
     }
 
     fn visit_assign(&mut self, assign: &ast::Assignment<'a>) -> Self::Output {
         let rhs = self.visit_expr(&assign.rhs)?;
-        let Some(place) = self.environment.get_mut(&assign.lhs.name()) else {
+        if let Err(NotFound(_)) = self.environment.set(&assign.lhs.name(), rhs.clone()) {
             return Err(RuntimeError::undefined(assign.lhs.clone()));
         };
-        *place = rhs.clone();
         Ok(rhs)
     }
 
@@ -503,7 +513,6 @@ impl<'a> AstVisitor<'a> for Interpreter {
     }
 
     fn visit_call(&mut self, call: &ast::Call<'a>) -> Self::Output {
-        #![allow(unreachable_code)]
         let callee = self.visit_expr(&call.callee)?;
         let args = call
             .args
@@ -513,18 +522,13 @@ impl<'a> AstVisitor<'a> for Interpreter {
 
         let Value::Func(fun) = callee else {
             return Err(RuntimeError::type_error(
-                todo!(),
                 &callee,
                 &[ValueDiscriminants::Func],
             ));
         };
 
         if fun.arity() != args.len() {
-            return Err(RuntimeError::argument_mismatch(
-                todo!(),
-                fun.arity(),
-                args.len(),
-            ));
+            return Err(RuntimeError::argument_mismatch(fun.arity(), args.len()));
         }
 
         fun.call(self, &args)
@@ -533,14 +537,13 @@ impl<'a> AstVisitor<'a> for Interpreter {
     fn visit_fun_decl(&mut self, decl: &FunDecl<'a>) -> Self::Output {
         let name = decl.name.name();
         let params = decl.params.iter().map(|p| p.name()).collect();
-        self.environment.declare(
-            name.clone(),
-            Value::Func(Rc::new(LoxFunc {
-                name,
-                params,
-                body: decl.body.clone().into_static(),
-            })),
+        LoxFunc::declare(
+            name,
+            params,
+            decl.body.clone().into_static(),
+            &mut self.environment,
         );
+
         Ok(Value::Void)
     }
 
@@ -559,7 +562,24 @@ impl<'a> AstVisitor<'a> for Interpreter {
 pub struct LoxFunc {
     name: String,
     params: Vec<String>,
+    closure: Env,
     body: Block<'static>,
+}
+
+impl LoxFunc {
+    pub fn declare(name: String, params: Vec<String>, body: Block<'static>, current_env: &mut Env) {
+        current_env.declare(name.clone(), Value::Void);
+        let closure = current_env.clone();
+
+        let this = Rc::new(LoxFunc {
+            name: name.clone(),
+            params,
+            closure,
+            body,
+        });
+        current_env.set(&name, Value::Func(this.clone())).unwrap();
+        this.closure.set(&name, Value::Func(this.clone())).unwrap();
+    }
 }
 
 impl LoxCallable for LoxFunc {
@@ -572,15 +592,11 @@ impl LoxCallable for LoxFunc {
         interpreter: &mut Interpreter,
         args: &[Value],
     ) -> Result<Value, RuntimeError<'static>> {
-        #![allow(unreachable_code)]
         if args.len() != self.arity() {
-            return Err(RuntimeError::argument_mismatch(
-                todo!(),
-                self.arity(),
-                args.len(),
-            ));
+            return Err(RuntimeError::argument_mismatch(self.arity(), args.len()));
         }
-        interpreter.disjoint_scope(|interpreter| {
+        let mut env = self.closure.clone();
+        interpreter.with_env(&mut env, |interpreter| {
             for (param, arg) in self.params.iter().cloned().zip(args.iter().cloned()) {
                 interpreter.environment.declare(param, arg);
             }
@@ -617,6 +633,16 @@ impl Interpreter {
         core::mem::swap(&mut env, &mut self.environment);
         let out = f(self);
         core::mem::swap(&mut env, &mut self.environment);
+        out
+    }
+
+    pub fn with_env<F, T>(&mut self, env: &mut Env, f: F) -> T
+    where
+        F: FnOnce(&mut Self) -> T,
+    {
+        core::mem::swap(env, &mut self.environment);
+        let out = f(self);
+        core::mem::swap(env, &mut self.environment);
         out
     }
 }
