@@ -3,7 +3,7 @@ use crate::lox::lexer::Lexeme;
 use super::{
     ast::{
         Assignment, BinaryExpr, Block, Call, Expr, ExprStmt, FunDecl, Ident, If, Literal,
-        LogicalExpr, LoxAst, PrintStmt, Stmt, UnaryExpr, VarDecl, While,
+        LogicalExpr, LoxAst, PrintStmt, ReturnStmt, Stmt, UnaryExpr, VarDecl, While,
     },
     lexer::{Token, TokenValue, TokenVariants},
 };
@@ -109,11 +109,27 @@ impl<'a> Parser<'a> {
 
     pub fn parse_stmt(&mut self) -> Result<Stmt<'a>, ParseError<'a>> {
         self.try_parse_print_statement()
+            .or_else(|| self.try_parse_return_stmt())
             .or_else(|| self.try_parse_if_stmt())
             .or_else(|| self.try_parse_while_stmt())
             .or_else(|| self.try_parse_for_stmt())
             .or_else(|| self.try_parse_block())
             .unwrap_or_else(|| self.parse_expr_statement())
+    }
+
+    pub fn try_parse_return_stmt(&mut self) -> Option<Result<Stmt<'a>, ParseError<'a>>> {
+        self.eat_matches(&[TokenVariants::Return]).ok()?;
+        let mut inner = || {
+            let value = if self.eat_matches(&[TokenVariants::Semicolon]).is_ok() {
+                None
+            } else {
+                let value = self.parse_expr()?;
+                self.eat_matches(&[TokenVariants::Semicolon])?;
+                Some(value)
+            };
+            Ok(Stmt::Return(Box::new(ReturnStmt { value })))
+        };
+        Some(inner())
     }
 
     pub fn try_parse_for_stmt(&mut self) -> Option<Result<Stmt<'a>, ParseError<'a>>> {
@@ -338,7 +354,7 @@ impl<'a> Parser<'a> {
             let mut args = Vec::new();
             if self.eat_matches(&[TokenVariants::RightParen]).is_err() {
                 loop {
-                    args.push(self.parse_primary()?);
+                    args.push(self.parse_expr()?);
                     if self.eat_matches(&[TokenVariants::Comma]).is_err() {
                         break;
                     }

@@ -18,6 +18,12 @@ pub enum Stmt<'a> {
     If(Box<If<'a>>),
     While(Box<While<'a>>),
     FunDecl(Box<FunDecl<'a>>),
+    Return(Box<ReturnStmt<'a>>),
+}
+
+#[derive(Debug, Clone, Ownit)]
+pub struct ReturnStmt<'a> {
+    pub value: Option<Expr<'a>>,
 }
 
 #[derive(Debug, Clone, Ownit)]
@@ -164,6 +170,7 @@ impl<'a> Stmt<'a> {
             Stmt::If(stmt) => visitor.visit_if(stmt),
             Stmt::While(stmt) => visitor.visit_while(stmt),
             Stmt::FunDecl(d) => visitor.visit_fun_decl(d),
+            Stmt::Return(r) => visitor.visit_return_stmt(r),
         }
     }
 }
@@ -206,4 +213,5 @@ pub trait AstVisitor<'a>: Sized {
     fn visit_while(&mut self, stmt: &While<'a>) -> Self::Output;
     fn visit_call(&mut self, call: &Call<'a>) -> Self::Output;
     fn visit_fun_decl(&mut self, call: &FunDecl<'a>) -> Self::Output;
+    fn visit_return_stmt(&mut self, ret: &ReturnStmt<'a>) -> Self::Output;
 }

@@ -5,8 +5,8 @@ use std::{
     time::SystemTime,
 };
 
-use ownit::Ownit;
 use derive_more::derive::Display;
+use ownit::Ownit;
 use strum::EnumDiscriminants;
 
 use super::{
@@ -59,7 +59,7 @@ impl Display for Object {
 
 #[derive(Debug)]
 pub struct RuntimeError<'a> {
-    token: Token<'a>,
+    token: Option<Token<'a>>,
     msg: String,
     kind: RErrorKind,
 }
@@ -67,7 +67,7 @@ pub struct RuntimeError<'a> {
 impl<'a> RuntimeError<'a> {
     pub fn argument_mismatch(token: Token<'a>, wants: usize, got: usize) -> Self {
         Self {
-            token,
+            token: Some(token),
             msg: format!("Expected function call with {wants} arguments, but got {got}."),
             kind: RErrorKind::ArgumentMismatch,
         }
@@ -75,15 +75,23 @@ impl<'a> RuntimeError<'a> {
 
     pub fn type_error(token: Token<'a>, value: &Value, wanted: &[ValueDiscriminants]) -> Self {
         Self {
-            token,
+            token: Some(token),
             msg: format!("Expected one of {wanted:?} but got {value:?}"),
             kind: RErrorKind::TypeError,
         }
     }
 
+    pub fn ret(value: Value) -> Self {
+        Self {
+            token: None,
+            msg: "Unexpected return value".to_owned(),
+            kind: RErrorKind::ReturnException(value),
+        }
+    }
+
     pub fn undefined(ident: Ident<'a>) -> Self {
         Self {
-            token: ident.ident,
+            token: Some(ident.ident),
             msg: "Undefined reference to variable".to_owned(),
             kind: RErrorKind::Undefined,
         }
@@ -97,17 +105,21 @@ pub struct RichRuntimeError<'a, 'src> {
 
 impl Display for RichRuntimeError<'_, '_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let (row, col) = self.error.token.lexeme.find_in_source(self.source);
-        write!(
-            f,
-            "{}: {} '{}' at {}:{}",
-            self.error.kind, self.error.msg, self.error.token.lexeme.payload, row, col
-        )
+        if let Some(token) = &self.error.token {
+            let (row, col) = token.lexeme.find_in_source(self.source);
+            write!(
+                f,
+                "{}: {} '{}' at {}:{}",
+                self.error.kind, self.error.msg, token.lexeme.payload, row, col
+            )
+        } else {
+            write!(f, "{}: {}", self.error.kind, self.error.msg)
+        }
     }
 }
 
 impl<'src> RuntimeError<'src> {
-    pub fn new(token: Token<'src>, msg: impl Into<String>, kind: RErrorKind) -> Self {
+    pub fn new(token: Option<Token<'src>>, msg: impl Into<String>, kind: RErrorKind) -> Self {
         Self {
             token,
             msg: msg.into(),
@@ -131,6 +143,8 @@ pub enum RErrorKind {
     Undefined,
     #[display("ArgumentMismatch")]
     ArgumentMismatch,
+    #[display("UnexpectedReturn")]
+    ReturnException(Value),
 }
 
 #[derive(Default, Clone)]
@@ -244,10 +258,30 @@ impl LoxCallable for Clock {
     }
 }
 
+#[derive(Debug, Display)]
+#[display("<native fn>")]
+struct StrFn {}
+
+impl LoxCallable for StrFn {
+    fn arity(&self) -> usize {
+        1
+    }
+
+    fn call(
+        &self,
+        _interpreter: &mut Interpreter,
+        args: &[Value],
+    ) -> Result<Value, RuntimeError<'static>> {
+        let args = &args[0];
+        Ok(Value::String(format!("{args}")))
+    }
+}
+
 impl Interpreter {
     pub fn new() -> Self {
         let mut env = Env::new();
         env.declare("clock".to_owned(), Value::Func(Rc::new(Clock {})));
+        env.declare("str".to_owned(), Value::Func(Rc::new(StrFn {})));
         Self { environment: env }
     }
 
@@ -293,7 +327,7 @@ impl<'a> AstVisitor<'a> for Interpreter {
                 (Value::Number(lhs), Value::Number(rhs)) => Ok(Value::Number(lhs + rhs)),
                 (Value::String(lhs), Value::String(rhs)) => Ok(Value::String(lhs + &rhs)),
                 (_lhs, _rhs) => Err(RuntimeError::new(
-                    binary_expr.op.clone(),
+                    Some(binary_expr.op.clone()),
                     "Invalid operands for binary expression",
                     RErrorKind::TypeError,
                 )),
@@ -301,7 +335,7 @@ impl<'a> AstVisitor<'a> for Interpreter {
             TokenValue::Minus => match (lhs, rhs) {
                 (Value::Number(lhs), Value::Number(rhs)) => Ok(Value::Number(lhs - rhs)),
                 (_lhs, _rhs) => Err(RuntimeError::new(
-                    binary_expr.op.clone(),
+                    Some(binary_expr.op.clone()),
                     "Invalid operands for binary expression",
                     RErrorKind::TypeError,
                 )),
@@ -309,7 +343,7 @@ impl<'a> AstVisitor<'a> for Interpreter {
             TokenValue::Star => match (lhs, rhs) {
                 (Value::Number(lhs), Value::Number(rhs)) => Ok(Value::Number(lhs * rhs)),
                 (_lhs, _rhs) => Err(RuntimeError::new(
-                    binary_expr.op.clone(),
+                    Some(binary_expr.op.clone()),
                     "Invalid operands for binary expression",
                     RErrorKind::TypeError,
                 )),
@@ -317,7 +351,7 @@ impl<'a> AstVisitor<'a> for Interpreter {
             TokenValue::Slash => match (lhs, rhs) {
                 (Value::Number(lhs), Value::Number(rhs)) => Ok(Value::Number(lhs / rhs)),
                 (_lhs, _rhs) => Err(RuntimeError::new(
-                    binary_expr.op.clone(),
+                    Some(binary_expr.op.clone()),
                     "Invalid operands for binary expression",
                     RErrorKind::TypeError,
                 )),
@@ -325,7 +359,7 @@ impl<'a> AstVisitor<'a> for Interpreter {
             TokenValue::Greater => match (lhs, rhs) {
                 (Value::Number(lhs), Value::Number(rhs)) => Ok(Value::Bool(lhs > rhs)),
                 (_lhs, _rhs) => Err(RuntimeError::new(
-                    binary_expr.op.clone(),
+                    Some(binary_expr.op.clone()),
                     "Invalid operands for binary expression",
                     RErrorKind::TypeError,
                 )),
@@ -333,7 +367,7 @@ impl<'a> AstVisitor<'a> for Interpreter {
             TokenValue::GreaterEqual => match (lhs, rhs) {
                 (Value::Number(lhs), Value::Number(rhs)) => Ok(Value::Bool(lhs >= rhs)),
                 (_lhs, _rhs) => Err(RuntimeError::new(
-                    binary_expr.op.clone(),
+                    Some(binary_expr.op.clone()),
                     "Invalid operands for binary expression",
                     RErrorKind::TypeError,
                 )),
@@ -341,7 +375,7 @@ impl<'a> AstVisitor<'a> for Interpreter {
             TokenValue::Less => match (lhs, rhs) {
                 (Value::Number(lhs), Value::Number(rhs)) => Ok(Value::Bool(lhs < rhs)),
                 (_lhs, _rhs) => Err(RuntimeError::new(
-                    binary_expr.op.clone(),
+                    Some(binary_expr.op.clone()),
                     "Invalid operands for binary expression",
                     RErrorKind::TypeError,
                 )),
@@ -349,7 +383,7 @@ impl<'a> AstVisitor<'a> for Interpreter {
             TokenValue::LessEqual => match (lhs, rhs) {
                 (Value::Number(lhs), Value::Number(rhs)) => Ok(Value::Bool(lhs <= rhs)),
                 (_lhs, _rhs) => Err(RuntimeError::new(
-                    binary_expr.op.clone(),
+                    Some(binary_expr.op.clone()),
                     "Invalid operands for binary expression",
                     RErrorKind::TypeError,
                 )),
@@ -366,7 +400,7 @@ impl<'a> AstVisitor<'a> for Interpreter {
             TokenValue::Minus => match rhs {
                 Value::Number(n) => Ok(Value::Number(-n)),
                 _ => Err(RuntimeError::new(
-                    unary_expr.op.clone(),
+                    Some(unary_expr.op.clone()),
                     "Invalid operand for unary expression",
                     RErrorKind::TypeError,
                 )),
@@ -509,6 +543,15 @@ impl<'a> AstVisitor<'a> for Interpreter {
         );
         Ok(Value::Void)
     }
+
+    fn visit_return_stmt(&mut self, ret: &ast::ReturnStmt<'a>) -> Self::Output {
+        let value = ret
+            .value
+            .as_ref()
+            .map(|expr| self.visit_expr(&expr))
+            .unwrap_or_else(|| Ok(Value::Nil))?;
+        Err(RuntimeError::ret(value))
+    }
 }
 
 #[derive(Debug, Display)]
@@ -541,7 +584,15 @@ impl LoxCallable for LoxFunc {
             for (param, arg) in self.params.iter().cloned().zip(args.iter().cloned()) {
                 interpreter.environment.declare(param, arg);
             }
-            interpreter.visit_block(&self.body)
+
+            match interpreter.visit_block(&self.body) {
+                Err(RuntimeError {
+                    kind: RErrorKind::ReturnException(value),
+                    ..
+                }) => Ok(value),
+                Err(e) => Err(e),
+                Ok(_) => Ok(Value::Nil),
+            }
         })
     }
 }

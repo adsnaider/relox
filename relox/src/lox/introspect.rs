@@ -97,4 +97,8 @@ impl<'a> AstVisitor<'a> for AstPrinter {
     fn visit_fun_decl(&mut self, decl: &FunDecl<'a>) -> Self::Output {
         todo!()
     }
+
+    fn visit_return_stmt(&mut self, ret: &ReturnStmt<'a>) -> Self::Output {
+        todo!()
+    }
 }
