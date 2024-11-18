@@ -64,15 +64,16 @@ impl<'a> Parser<'a> {
             self.eat_matches(&[TokenVariants::LeftParen])?;
             let mut params = Vec::new();
 
-            loop {
-                let param = self.eat_matches(&[TokenVariants::Ident])?;
-                params.push(Ident { ident: param });
-                if self.eat_matches(&[TokenVariants::Comma]).is_err() {
-                    break;
+            if self.eat_matches(&[TokenVariants::RightParen]).is_err() {
+                loop {
+                    let param = self.eat_matches(&[TokenVariants::Ident])?;
+                    params.push(Ident { ident: param });
+                    if self.eat_matches(&[TokenVariants::Comma]).is_err() {
+                        break;
+                    }
                 }
+                self.eat_matches(&[TokenVariants::RightParen])?;
             }
-
-            self.eat_matches(&[TokenVariants::RightParen])?;
 
             let Stmt::Block(body) = self.parse_block()? else {
                 unreachable!();
