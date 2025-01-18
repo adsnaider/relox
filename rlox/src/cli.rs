@@ -55,7 +55,7 @@ impl Cli {
                 0 => break,
                 _ => {}
             }
-            let _ = self.lox.eval(&line).inspect_err(|e| match *e {});
+            let _ = self.lox.eval(&line).inspect_err(|e| e.report());
         }
         println!();
         exit(0)
@@ -67,7 +67,7 @@ impl Cli {
             .unwrap_or_else(|e| panic!("Couldn't open the file \"{}\": {e}", source.display()));
         file.read_to_string(&mut content)
             .unwrap_or_else(|e| panic!("Couldn't read the file \"{}\": {e}", source.display()));
-        self.lox.eval(&content).unwrap_or_else(|e| match e {});
+        self.lox.eval(&content).unwrap_or_else(|e| e.report());
         exit(0)
     }
 }

@@ -1,4 +1,4 @@
 [workspace]
-members = ["relox"]
+members = ["rlox", "relox"]
 resolver = "2"
 default-members = ["relox"]

@@ -1,11 +1,9 @@
 fun fib(n) {
-  if (n <= 1) return n;
-  return fib(n - 2) + fib(n - 1);
+  if (n < 2) return n;
+  return fib(n - 1) + fib(n - 2); 
 }
 
 var start = clock();
-for (var i = 0; i < 20; i = i + 1) {
-  print fib(i);
-}
+print fib(40);
 var end = clock();
 print "Benchmark: " + str(end - start) + "ms";

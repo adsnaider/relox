@@ -1,5 +1,5 @@
 [package]
-name = "relox"
+name = "rlox"
 version = "0.1.0"
 edition = "2021"
 default-run = "cli"
@@ -7,8 +7,8 @@ default-run = "cli"
 [dependencies]
 anyhow = "1.0.92"
 clap = { version = "4.5.20", features = ["derive"] }
+ctrlc = "3.4.5"
 derive_more = { version = "1.0.0", features = ["error", "from", "display"] }
 strum = { version = "0.26.3", features = ["derive"] }
 thiserror = "2.0.1"
 ownit = "0.1.0"
-zerocopy = { version = "0.8.14", features = ["derive"] }
