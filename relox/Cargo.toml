@@ -22,6 +22,4 @@ thiserror = "2.0.1"
 ownit = "0.1.0"
 zerocopy = { version = "0.8.14", features = ["derive"] }
 log = "0.4.25"
-
-[dev-dependencies]
 env_logger = "0.11.6"
