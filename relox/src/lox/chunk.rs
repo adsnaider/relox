@@ -12,6 +12,11 @@ pub struct ConstIdx(u8);
 pub enum Instr {
     Return = 0,
     Const(ConstIdx) = 1,
+    Negate = 2,
+    Add = 3,
+    Sub = 4,
+    Mul = 5,
+    Div = 6,
 }
 
 #[derive(Error, Debug)]
@@ -32,6 +37,11 @@ impl Instr {
                 let idx = ConstIdx(*idx);
                 Ok((Self::Const(idx), 2))
             }
+            2 => Ok((Self::Negate, 1)),
+            3 => Ok((Self::Add, 1)),
+            4 => Ok((Self::Sub, 1)),
+            5 => Ok((Self::Mul, 1)),
+            6 => Ok((Self::Div, 1)),
             op => Err(InvalidInstr::UnknownOpCode(op)),
         }
     }
@@ -42,6 +52,11 @@ impl Instr {
             Instr::Const(idx) => {
                 output.extend_from_slice(&[1, idx.0]);
             }
+            Instr::Negate => output.push(2),
+            Instr::Add => output.push(3),
+            Instr::Sub => output.push(4),
+            Instr::Mul => output.push(5),
+            Instr::Div => output.push(6),
         }
     }
 
@@ -52,6 +67,11 @@ impl Instr {
                 Some(value) => format!("<const> [{const_idx}] '{value}'"),
                 None => format!("<const> [{const_idx}] undefined"),
             },
+            Instr::Negate => format!("<neg>"),
+            Instr::Add => format!("<add>"),
+            Instr::Sub => format!("<sub>"),
+            Instr::Mul => format!("<mul>"),
+            Instr::Div => format!("<div>"),
         }
     }
 }
@@ -109,6 +129,10 @@ impl Chunk {
 
     pub fn add_constant(&mut self, constant: Value) -> ConstIdx {
         self.consts.push(constant)
+    }
+
+    pub fn get_constant(&self, idx: ConstIdx) -> Option<Value> {
+        self.consts.get(&idx)
     }
 
     pub fn instructions(&self) -> ChunkIter<'_> {
