@@ -1,4 +1,5 @@
 pub mod chunk;
+pub mod value;
 
 use std::convert::Infallible;
 
