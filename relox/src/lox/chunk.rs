@@ -71,9 +71,30 @@ impl Constants {
 }
 
 #[derive(Debug, Default)]
-pub struct Chunk {
-    code: Vec<u8>,
+pub struct Code {
+    bytecode: Vec<u8>,
     lines: Vec<usize>,
+}
+
+impl Code {
+    pub fn add_instruction(&mut self, inst: Instr, line: usize) {
+        let start_len = self.bytecode.len();
+        inst.serialize(&mut self.bytecode);
+        let count = self.bytecode.len() - start_len;
+        self.lines.extend(std::iter::repeat(line).take(count));
+    }
+
+    pub fn instructions(&self) -> ChunkIter<'_> {
+        ChunkIter {
+            code: &self.bytecode,
+            offset: 0,
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct Chunk {
+    code: Code,
     consts: Constants,
 }
 
@@ -83,10 +104,7 @@ impl Chunk {
     }
 
     pub fn add_instruction(&mut self, inst: Instr, line: usize) {
-        let start_len = self.code.len();
-        inst.serialize(&mut self.code);
-        let count = self.code.len() - start_len;
-        self.lines.extend(std::iter::repeat(line).take(count));
+        self.code.add_instruction(inst, line);
     }
 
     pub fn add_constant(&mut self, constant: Value) -> ConstIdx {
@@ -94,17 +112,14 @@ impl Chunk {
     }
 
     pub fn instructions(&self) -> ChunkIter<'_> {
-        ChunkIter {
-            code: &self.code,
-            offset: 0,
-        }
+        self.code.instructions()
     }
 
     pub fn disassemble(&self) -> String {
         let mut output = String::new();
         for (off, inst) in self.instructions().map(Result::unwrap) {
-            let line = self.lines[off];
-            let indicator = if off > 0 && line == self.lines[off - 1] {
+            let line = self.code.lines[off];
+            let indicator = if off > 0 && line == self.code.lines[off - 1] {
                 format!("|")
             } else {
                 format!("{line}")
