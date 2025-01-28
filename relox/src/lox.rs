@@ -1,11 +1,18 @@
+pub mod ast;
 pub mod chunk;
+pub mod compiler;
 pub mod lexer;
+pub mod parser;
 pub mod value;
 pub mod vm;
 
-use derive_more::derive::{Display, From};
-use lexer::{LexError, Lexer};
-use vm::Vm;
+use std::fmt::Display;
+
+use compiler::Compiler;
+use derive_more::derive::From;
+use lexer::Lexer;
+use parser::{Parser, ParserError};
+use vm::{RuntimeError, Vm};
 
 /// The `Lox` interpreter
 #[derive(Debug)]
@@ -13,10 +20,16 @@ pub struct Lox {
     vm: Vm,
 }
 
-#[derive(From, Display, Debug)]
+#[derive(From, Debug)]
 pub enum LoxError<'a> {
-    #[display("{_0}")]
-    LexError(#[from] LexError<'a>),
+    ParseError(#[from] ParserError<'a>),
+    RuntimeError(#[from] RuntimeError),
+}
+
+impl Display for LoxError<'_> {
+    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        todo!()
+    }
 }
 
 impl Lox {
@@ -30,18 +43,9 @@ impl Lox {
 
     pub fn eval<'a>(&mut self, source: &'a str) -> Result<(), LoxError<'a>> {
         let lexer = Lexer::new(source);
-        let mut last_line = 0;
-        for token in lexer {
-            let token = token?;
-            let (line, _) = token.lexeme.locate();
-            let cont = if line != last_line {
-                format!("{line}")
-            } else {
-                format!("|")
-            };
-            println!("{cont:>4} {:?} {}", token.value, token.lexeme);
-            last_line = line;
-        }
+        let ast = Parser::parse(lexer)?;
+        let chunk = Compiler::compile(ast.node);
+        self.vm.interpret(chunk)?;
         Ok(())
     }
 }
