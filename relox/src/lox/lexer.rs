@@ -2,7 +2,10 @@ use derive_more::derive::Display;
 use strum::EnumDiscriminants;
 use thiserror::Error;
 
+use super::ast::span::Span;
+
 /// Lexer for the Lox language
+#[derive(Debug, Clone)]
 pub struct Lexer<'a> {
     input: &'a str,
     offset: usize,
@@ -13,6 +16,13 @@ struct Eof;
 impl<'a> Lexer<'a> {
     pub fn new(input: &'a str) -> Self {
         Self { input, offset: 0 }
+    }
+
+    pub fn drain(&mut self) -> Self {
+        let this = self.clone();
+        self.input = "";
+        self.offset = 0;
+        this
     }
 
     pub fn lex(self) -> Result<Vec<Token<'a>>, Vec<LexError<'a>>> {
@@ -81,6 +91,10 @@ impl<'a> Lexer<'a> {
 
     fn last_lexeme(&self, start_offset: usize) -> Lexeme<'a> {
         Lexeme::new(&self.input, Span::new(start_offset, self.offset))
+    }
+
+    pub fn offset(&self) -> usize {
+        self.offset
     }
 }
 fn is_alpha(c: char) -> bool {
@@ -198,18 +212,6 @@ const fn reserved_keywords(keyword: &[u8]) -> Option<TokenValue> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct Span {
-    pub start: usize,
-    pub end: usize,
-}
-
-impl Span {
-    pub fn new(start: usize, end: usize) -> Self {
-        Self { start, end }
-    }
-}
-
 #[derive(Debug, Clone, Display)]
 #[display("'{}'", self.payload())]
 pub struct Lexeme<'a> {
@@ -273,7 +275,13 @@ pub struct Token<'a> {
     pub lexeme: Lexeme<'a>,
 }
 
-#[derive(Debug, Clone, EnumDiscriminants)]
+impl Token<'_> {
+    pub fn span(&self) -> Span {
+        self.lexeme.span
+    }
+}
+
+#[derive(Debug, Clone, EnumDiscriminants, PartialEq, PartialOrd)]
 #[strum_discriminants(name(TokenVariants))]
 pub enum TokenValue {
     LeftParen,
@@ -314,5 +322,4 @@ pub enum TokenValue {
     True,
     Var,
     While,
-    Eof,
 }
