@@ -1,6 +1,9 @@
 mod combine;
 
 use combine::{any, opt, Parse, StructuredLexer};
+use miette::Diagnostic;
+use ownit::Ownit;
+use thiserror::Error;
 
 use crate::lox::ast::BinaryOp;
 
@@ -13,12 +16,33 @@ pub struct Parser<'a> {
     lexer: StructuredLexer<'a>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error, Diagnostic, Ownit)]
 pub enum ParserError<'a> {
-    LexerError(Vec<LexError<'a>>),
+    #[error("Failure during lexing")]
+    LexerError(#[related] Vec<LexError<'a>>),
+    #[error("Unexpected EOF")]
     UnexpectedEof,
-    UnexpectedToken(Token<'a>),
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    UnexpectedToken(UnexpectedToken<'a>),
+    #[error("Failed assertion")]
+    #[diagnostic(code(parser::fail))]
     Fail,
+}
+
+impl<'a> ParserError<'a> {
+    pub fn unexpected_token(token: Token<'a>) -> Self {
+        Self::UnexpectedToken(UnexpectedToken { token })
+    }
+}
+
+#[derive(Debug, Error, Diagnostic, Ownit)]
+#[error("Unexpected token: {}", .token.lexeme)]
+#[diagnostic(code(parser::unexpected_token))]
+pub struct UnexpectedToken<'a> {
+    #[label("Here")]
+    #[source_code]
+    token: Token<'a>,
 }
 
 pub type PResult<'a, T> = Result<T, ParserError<'a>>;
@@ -59,7 +83,7 @@ impl<'a> Parser<'a> {
                     let expr = self.expression(rbp)?;
                     Expr::unary(op, expr)
                 } else {
-                    return Err(ParserError::UnexpectedToken(start));
+                    return Err(ParserError::unexpected_token(start));
                 }
             }
         };

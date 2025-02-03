@@ -31,7 +31,7 @@ impl<'a> TryFrom<&Token<'a>> for BinaryOp {
             TokenValue::Minus => Ok(Self::Minus),
             TokenValue::Star => Ok(Self::Mult),
             TokenValue::Slash => Ok(Self::Div),
-            _ => Err(ParserError::UnexpectedToken(value.clone())),
+            _ => Err(ParserError::unexpected_token(value.clone())),
         }
     }
 }
@@ -43,7 +43,7 @@ impl<'a> TryFrom<&Token<'a>> for PrefixOp {
         match value.value {
             TokenValue::Plus => Ok(Self::Plus),
             TokenValue::Minus => Ok(Self::Neg),
-            _ => Err(ParserError::UnexpectedToken(value.clone())),
+            _ => Err(ParserError::unexpected_token(value.clone())),
         }
     }
 }

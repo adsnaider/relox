@@ -77,7 +77,7 @@ impl<'a> Parse<'a, Token<'a>> for TokenValue {
         if next.value == *self {
             Ok(next)
         } else {
-            Err(ParserError::UnexpectedToken(next))
+            Err(ParserError::unexpected_token(next))
         }
     }
 }
@@ -88,7 +88,7 @@ impl<'a> Parse<'a, Token<'a>> for TokenVariants {
         if *self == (&next.value).into() {
             Ok(next)
         } else {
-            Err(ParserError::UnexpectedToken(next))
+            Err(ParserError::unexpected_token(next))
         }
     }
 }

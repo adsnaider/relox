@@ -1,4 +1,8 @@
+use std::borrow::Cow;
+
 use derive_more::derive::Display;
+use miette::{Diagnostic, SourceCode, SourceOffset, SourceSpan};
+use ownit::Ownit;
 use strum::EnumDiscriminants;
 use thiserror::Error;
 
@@ -105,11 +109,55 @@ fn is_alphanumeric(c: char) -> bool {
     c.is_ascii_alphanumeric() || c == '_'
 }
 
-#[derive(Debug, Error, Clone)]
+impl From<Lexeme<'_>> for SourceSpan {
+    fn from(value: Lexeme<'_>) -> Self {
+        Self::new(
+            SourceOffset::from(value.span.start),
+            value.span.end - value.span.start,
+        )
+    }
+}
+impl From<Token<'_>> for SourceSpan {
+    fn from(value: Token<'_>) -> Self {
+        Self::from(value.lexeme)
+    }
+}
+
+impl SourceCode for Token<'_> {
+    fn read_span<'a>(
+        &'a self,
+        span: &SourceSpan,
+        context_lines_before: usize,
+        context_lines_after: usize,
+    ) -> Result<Box<dyn miette::SpanContents<'a> + 'a>, miette::MietteError> {
+        self.lexeme
+            .read_span(span, context_lines_before, context_lines_after)
+    }
+}
+
+impl SourceCode for Lexeme<'_> {
+    fn read_span<'a>(
+        &'a self,
+        span: &SourceSpan,
+        context_lines_before: usize,
+        context_lines_after: usize,
+    ) -> Result<Box<dyn miette::SpanContents<'a> + 'a>, miette::MietteError> {
+        self.source
+            .read_span(span, context_lines_before, context_lines_after)
+    }
+}
+
+#[derive(Debug, Error, Clone, Ownit, Diagnostic)]
 pub enum LexError<'a> {
     #[error("Unexpected character: {lexeme}")]
-    UnexpectedCharacter { lexeme: Lexeme<'a> },
+    #[diagnostic(code(lexer::unexpected_char))]
+    UnexpectedCharacter {
+        #[label = "Here"]
+        #[source_code]
+        lexeme: Lexeme<'a>,
+    },
     #[error("Unterminated string")]
+    #[diagnostic(code(lexer::unterminated_string))]
     UnterminatedString,
 }
 
@@ -212,24 +260,27 @@ const fn reserved_keywords(keyword: &[u8]) -> Option<TokenValue> {
     }
 }
 
-#[derive(Debug, Clone, Display)]
+#[derive(Debug, Clone, Display, Ownit)]
 #[display("'{}'", self.payload())]
 pub struct Lexeme<'a> {
     pub span: Span,
-    pub source: &'a str,
+    pub source: Cow<'a, str>,
 }
 
 impl<'a> Lexeme<'a> {
-    pub fn as_str(&self) -> &'a str {
+    pub fn as_str(&self) -> &str {
         self.payload()
     }
 
-    pub fn payload(&self) -> &'a str {
-        &self.source[self.span.start..self.span.end]
+    pub fn payload(&self) -> &str {
+        &self.source.as_ref()[self.span.start..self.span.end]
     }
 
     pub fn new(source: &'a str, span: Span) -> Self {
-        Self { source, span }
+        Self {
+            source: source.into(),
+            span,
+        }
     }
 
     pub fn locate(&self) -> (usize, usize) {
@@ -269,7 +320,7 @@ impl<'a> Lexeme<'a> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Ownit)]
 pub struct Token<'a> {
     pub value: TokenValue,
     pub lexeme: Lexeme<'a>,
@@ -281,7 +332,7 @@ impl Token<'_> {
     }
 }
 
-#[derive(Debug, Clone, EnumDiscriminants, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, EnumDiscriminants, PartialEq, PartialOrd, Ownit)]
 #[strum_discriminants(name(TokenVariants))]
 pub enum TokenValue {
     LeftParen,

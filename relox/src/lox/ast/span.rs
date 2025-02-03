@@ -1,4 +1,6 @@
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+use ownit::Ownit;
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Ownit)]
 pub struct Span {
     pub start: usize,
     pub end: usize,

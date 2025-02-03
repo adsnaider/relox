@@ -1,26 +1,27 @@
 use relox::lox::{
     ast::{visit::AstVisitor, BinaryExpr, Expr, Group, Lit, LoxAst, PrefixExpr},
     lexer::Lexer,
-    parser::Parser,
+    parser::{Parser, ParserError},
 };
 
-fn main() {
+fn main() -> Result<(), miette::Error> {
     env_logger::init();
-    assert_eq!(reverse_polished("3 + 4 * 2"), "(+ 3 (* 4 2))");
-    assert_eq!(reverse_polished("(3 + 4) * 2"), "(* (+ 3 4) 2)");
-    assert_eq!(reverse_polished("((3) + (4) * 2)"), "(+ 3 (* 4 2))");
-    assert_eq!(reverse_polished("(-3 + 4) * -2)"), "(* (+ (- 3) 4) (- 2))");
+    assert_eq!(reverse_polished("3 + 4 * 2")?, "(+ 3 (* 4 2))");
+    assert_eq!(reverse_polished("(3 + 4) * 2")?, "(* (+ 3 4) 2)");
+    assert_eq!(reverse_polished("((3) + (4) * 2)")?, "(+ 3 (* 4 2))");
+    assert_eq!(reverse_polished("(-3 + 4) * -2)")?, "(* (+ (- 3) 4) (- 2))");
     assert_eq!(
-        reverse_polished("(-3 + ++-4) * -2)"),
+        reverse_polished("(-3 + ++-4) * -2)")?,
         "(* (+ (- 3) (+ (+ (- 4)))) (- 2))"
     );
-    assert_eq!(reverse_polished("1 + 2 + 3 + 4"), "(+ (+ (+ 1 2) 3) 4)");
+    assert_eq!(reverse_polished("1 + 2 + 3 + 4")?, "(+ (+ (+ 1 2) 3) 4)");
+    Ok(())
 }
 
-fn reverse_polished(expr: &str) -> String {
+fn reverse_polished(expr: &str) -> Result<String, ParserError> {
     let lexer = Lexer::new(expr);
-    let ast = Parser::parse(lexer).unwrap();
-    ReversePolisher.visit_ast(&ast.node)
+    let ast = Parser::parse(lexer)?;
+    Ok(ReversePolisher.visit_ast(&ast.node))
 }
 
 struct ReversePolisher;
