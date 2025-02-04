@@ -17,6 +17,9 @@ pub enum Instr {
     Sub = 4,
     Mul = 5,
     Div = 6,
+    True = 7,
+    False = 8,
+    Nil = 9,
 }
 
 #[derive(Error, Debug)]
@@ -42,6 +45,9 @@ impl Instr {
             4 => Ok((Self::Sub, 1)),
             5 => Ok((Self::Mul, 1)),
             6 => Ok((Self::Div, 1)),
+            7 => Ok((Self::True, 1)),
+            8 => Ok((Self::False, 1)),
+            9 => Ok((Self::Nil, 1)),
             op => Err(InvalidInstr::UnknownOpCode(op)),
         }
     }
@@ -57,6 +63,9 @@ impl Instr {
             Instr::Sub => output.push(4),
             Instr::Mul => output.push(5),
             Instr::Div => output.push(6),
+            Instr::True => output.push(7),
+            Instr::False => output.push(8),
+            Instr::Nil => output.push(9),
         }
     }
 
@@ -72,6 +81,9 @@ impl Instr {
             Instr::Sub => format!("<sub>"),
             Instr::Mul => format!("<mul>"),
             Instr::Div => format!("<div>"),
+            Instr::True => format!("<true>"),
+            Instr::False => format!("<false>"),
+            Instr::Nil => format!("<null>"),
         }
     }
 }

@@ -1,5 +1,5 @@
 use super::{
-    ast::{self, visit::AstVisitor, BinaryOp, LoxAst, PrefixOp},
+    ast::{self, visit::AstVisitor, BinaryOp, Lit, LoxAst, PrefixOp},
     chunk::{Chunk, Instr},
     value::Value,
 };
@@ -37,8 +37,22 @@ impl AstVisitor for Compiler {
         prefix_expr.walk(self)
     }
 
-    fn visit_literal(&mut self, literal_expr: &ast::Lit) {
-        literal_expr.walk(self)
+    fn visit_literal(&mut self, literal_expr: &Lit) {
+        match literal_expr {
+            Lit::Num(num) => {
+                let idx = self.bytecode.add_constant(Value::num(num.value));
+                self.bytecode.add_instruction(Instr::Const(idx), 1);
+            }
+            Lit::Bool(true) => {
+                self.bytecode.add_instruction(Instr::True, 1);
+            }
+            Lit::Bool(false) => {
+                self.bytecode.add_instruction(Instr::False, 1);
+            }
+            Lit::Nil => {
+                self.bytecode.add_instruction(Instr::Nil, 1);
+            }
+        }
     }
 
     fn visit_group(&mut self, group: &ast::Group) {
@@ -59,10 +73,5 @@ impl AstVisitor for Compiler {
             PrefixOp::Plus => {}
             PrefixOp::Neg => self.bytecode.add_instruction(Instr::Negate, 1),
         }
-    }
-
-    fn visit_num(&mut self, num: &ast::Num) {
-        let idx = self.bytecode.add_constant(Value::num(num.value));
-        self.bytecode.add_instruction(Instr::Const(idx), 1);
     }
 }

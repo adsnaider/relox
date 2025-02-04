@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use derive_more::derive::{Display, Error, From};
-use miette::{Diagnostic, LabeledSpan};
+use miette::Diagnostic;
 
 use crate::lox::chunk::Instr;
 
@@ -108,6 +108,15 @@ impl Vm {
                     let b = self.stack.pop().unwrap().as_num().add_ctx(off)?;
                     let a = self.stack.pop().unwrap().as_num().add_ctx(off)?;
                     self.stack.push(a / b).add_ctx(off)?;
+                }
+                Instr::True => {
+                    self.stack.push(true).add_ctx(off)?;
+                }
+                Instr::False => {
+                    self.stack.push(false).add_ctx(off)?;
+                }
+                Instr::Nil => {
+                    self.stack.push(Value::Nil).add_ctx(off)?;
                 }
             }
         }

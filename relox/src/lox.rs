@@ -6,11 +6,10 @@ pub mod parser;
 pub mod value;
 pub mod vm;
 
-use std::fmt::Display;
-
 use compiler::Compiler;
-use derive_more::derive::From;
+use derive_more::derive::{Display, Error, From};
 use lexer::Lexer;
+use miette::Diagnostic;
 use parser::{Parser, ParserError};
 use vm::{RuntimeError, Vm};
 
@@ -20,15 +19,34 @@ pub struct Lox {
     vm: Vm,
 }
 
-#[derive(From, Debug)]
-pub enum LoxError<'a> {
-    ParseError(#[from] ParserError<'a>),
-    RuntimeError(#[from] RuntimeError),
+#[derive(From, Debug, Error, Diagnostic, Display)]
+pub enum LoxErrorKind<'a> {
+    #[diagnostic(transparent)]
+    ParseError(#[error(not(source))] ParserError<'a>),
+    #[diagnostic(transparent)]
+    RuntimeError(RuntimeError),
 }
 
-impl Display for LoxError<'_> {
-    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
+#[derive(Debug, Error, Diagnostic, Display)]
+#[display("{kind}")]
+#[diagnostic(forward(kind))]
+pub struct LoxError<'a> {
+    #[error(not(source))]
+    #[source_code]
+    source: &'a str,
+    kind: LoxErrorKind<'a>,
+}
+
+trait LoxErrorCtx<'a, T> {
+    fn add_ctx(self, source: &'a str) -> Result<T, LoxError<'a>>;
+}
+
+impl<'a, T, E: Into<LoxErrorKind<'a>>> LoxErrorCtx<'a, T> for Result<T, E> {
+    fn add_ctx(self, source: &'a str) -> Result<T, LoxError<'a>> {
+        self.map_err(|e| LoxError {
+            source,
+            kind: e.into(),
+        })
     }
 }
 
@@ -43,9 +61,9 @@ impl Lox {
 
     pub fn eval<'a>(&mut self, source: &'a str) -> Result<(), LoxError<'a>> {
         let lexer = Lexer::new(source);
-        let ast = Parser::parse(lexer)?;
+        let ast = Parser::parse(lexer).add_ctx(source)?;
         let chunk = Compiler::compile(ast.node);
-        self.vm.interpret(chunk)?;
+        self.vm.interpret(chunk).add_ctx(source)?;
         Ok(())
     }
 }

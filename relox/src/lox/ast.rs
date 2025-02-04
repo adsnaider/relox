@@ -61,6 +61,8 @@ pub struct Group {
 #[derive(Debug, Clone, Display)]
 pub enum Lit {
     Num(Num),
+    Bool(bool),
+    Nil,
 }
 
 #[derive(Debug, Clone, Display)]
@@ -101,11 +103,7 @@ impl PrefixExpr {
 }
 
 impl Lit {
-    pub fn walk<V: AstVisitor>(&self, visitor: &mut V) {
-        match self {
-            Lit::Num(num) => visitor.visit_num(num),
-        }
-    }
+    pub fn walk<V: AstVisitor>(&self, _visitor: &mut V) {}
 }
 
 impl Group {

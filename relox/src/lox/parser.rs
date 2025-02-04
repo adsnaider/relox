@@ -77,6 +77,9 @@ impl<'a> Parser<'a> {
                 Expr::group(expr)
             }
             TokenValue::Number(n) => Expr::lit(Lit::Num(Num { value: n })),
+            TokenValue::True => Expr::lit(Lit::Bool(true)),
+            TokenValue::False => Expr::lit(Lit::Bool(false)),
+            TokenValue::Nil => Expr::lit(Lit::Nil),
             _ => {
                 if let Ok(op) = PrefixOp::try_from(&start) {
                     let ((), rbp) = op.binding_power();

@@ -43,8 +43,4 @@ pub trait AstVisitor: Sized {
     fn visit_prefix_op(&mut self, op: &PrefixOp) {
         op.walk(self)
     }
-
-    fn visit_num(&mut self, num: &Num) {
-        num.walk(self)
-    }
 }
