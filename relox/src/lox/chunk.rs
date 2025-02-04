@@ -21,6 +21,9 @@ pub enum Instr {
     False = 8,
     Nil = 9,
     Not = 10,
+    Eq = 11,
+    Less = 12,
+    Greater = 13,
 }
 
 #[derive(Error, Debug)]
@@ -50,6 +53,9 @@ impl Instr {
             8 => Ok((Self::False, 1)),
             9 => Ok((Self::Nil, 1)),
             10 => Ok((Self::Not, 1)),
+            11 => Ok((Self::Eq, 1)),
+            12 => Ok((Self::Less, 1)),
+            13 => Ok((Self::Greater, 1)),
             op => Err(InvalidInstr::UnknownOpCode(op)),
         }
     }
@@ -69,6 +75,9 @@ impl Instr {
             Instr::False => output.push(8),
             Instr::Nil => output.push(9),
             Instr::Not => output.push(10),
+            Instr::Eq => output.push(11),
+            Instr::Less => output.push(12),
+            Instr::Greater => output.push(13),
         }
     }
 
@@ -88,6 +97,9 @@ impl Instr {
             Instr::False => format!("<false>"),
             Instr::Nil => format!("<null>"),
             Instr::Not => format!("<not>"),
+            Instr::Eq => format!("<eq>"),
+            Instr::Less => format!("<less>"),
+            Instr::Greater => format!("<greater>"),
         }
     }
 }

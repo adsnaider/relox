@@ -21,6 +21,17 @@ pub enum Value {
     Nil,
 }
 
+impl PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Value::Num(a), Value::Num(b)) => a == b,
+            (Value::Nil, Value::Nil) => true,
+            (Value::Bool(a), Value::Bool(b)) => a == b,
+            _ => false,
+        }
+    }
+}
+
 impl core::fmt::Display for ValueDiscriminants {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let value = match self {
@@ -71,6 +82,8 @@ impl Value {
     DivAssign,
     Neg,
     From,
+    PartialEq,
+    PartialOrd,
 )]
 #[mul(forward)]
 #[div(forward)]

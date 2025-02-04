@@ -8,8 +8,10 @@ use super::*;
 impl BinaryOp {
     pub fn binding_power(&self) -> (u8, u8) {
         match *self {
-            BinaryOp::Plus | BinaryOp::Minus => (1, 2),
-            BinaryOp::Mult | BinaryOp::Div => (3, 4),
+            BinaryOp::Plus | BinaryOp::Minus => (5, 6),
+            BinaryOp::Mult | BinaryOp::Div => (7, 8),
+            BinaryOp::Equal | BinaryOp::NotEqual => (1, 2),
+            BinaryOp::Greater | BinaryOp::GreaterEq | BinaryOp::Less | BinaryOp::LessEq => (3, 4),
         }
     }
 }
@@ -17,7 +19,7 @@ impl BinaryOp {
 impl PrefixOp {
     pub fn binding_power(&self) -> ((), u8) {
         match *self {
-            Self::Plus | Self::Neg | Self::Not => ((), 5),
+            Self::Plus | Self::Neg | Self::Not => ((), 9),
         }
     }
 }
@@ -31,6 +33,12 @@ impl<'a> TryFrom<&Token<'a>> for BinaryOp {
             TokenValue::Minus => Ok(Self::Minus),
             TokenValue::Star => Ok(Self::Mult),
             TokenValue::Slash => Ok(Self::Div),
+            TokenValue::Less => Ok(Self::Less),
+            TokenValue::LessEqual => Ok(Self::LessEq),
+            TokenValue::Greater => Ok(Self::Greater),
+            TokenValue::GreaterEqual => Ok(Self::GreaterEq),
+            TokenValue::EqualEqual => Ok(Self::Equal),
+            TokenValue::BangEqual => Ok(Self::NotEqual),
             _ => Err(ParserError::unexpected_token(value.clone())),
         }
     }

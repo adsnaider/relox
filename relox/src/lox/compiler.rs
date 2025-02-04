@@ -65,6 +65,21 @@ impl AstVisitor for Compiler {
             BinaryOp::Minus => self.bytecode.add_instruction(Instr::Sub, 1),
             BinaryOp::Mult => self.bytecode.add_instruction(Instr::Mul, 1),
             BinaryOp::Div => self.bytecode.add_instruction(Instr::Div, 1),
+            BinaryOp::Equal => self.bytecode.add_instruction(Instr::Eq, 1),
+            BinaryOp::NotEqual => {
+                self.bytecode.add_instruction(Instr::Eq, 1);
+                self.bytecode.add_instruction(Instr::Not, 1);
+            }
+            BinaryOp::Less => self.bytecode.add_instruction(Instr::Less, 1),
+            BinaryOp::Greater => self.bytecode.add_instruction(Instr::Greater, 1),
+            BinaryOp::LessEq => {
+                self.bytecode.add_instruction(Instr::Greater, 1);
+                self.bytecode.add_instruction(Instr::Not, 1);
+            }
+            BinaryOp::GreaterEq => {
+                self.bytecode.add_instruction(Instr::Less, 1);
+                self.bytecode.add_instruction(Instr::Not, 1);
+            }
         }
     }
 

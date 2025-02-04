@@ -122,6 +122,21 @@ impl Vm {
                     let a = self.stack.pop().unwrap().truthy();
                     self.stack.push(!a).add_ctx(off)?;
                 }
+                Instr::Eq => {
+                    let b = self.stack.pop().unwrap();
+                    let a = self.stack.pop().unwrap();
+                    self.stack.push(a == b).add_ctx(off)?;
+                }
+                Instr::Less => {
+                    let b = self.stack.pop().unwrap().as_num().add_ctx(off)?;
+                    let a = self.stack.pop().unwrap().as_num().add_ctx(off)?;
+                    self.stack.push(a < b).add_ctx(off)?;
+                }
+                Instr::Greater => {
+                    let b = self.stack.pop().unwrap().as_num().add_ctx(off)?;
+                    let a = self.stack.pop().unwrap().as_num().add_ctx(off)?;
+                    self.stack.push(a > b).add_ctx(off)?;
+                }
             }
         }
         Ok(())

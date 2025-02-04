@@ -63,6 +63,7 @@ impl Lox {
         let lexer = Lexer::new(source);
         let ast = Parser::parse(lexer).add_ctx(source)?;
         let chunk = Compiler::compile(ast.node);
+        // println!("{}", chunk.disassemble());
         self.vm.interpret(chunk).add_ctx(source)?;
         Ok(())
     }

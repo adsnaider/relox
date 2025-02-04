@@ -37,6 +37,18 @@ pub enum BinaryOp {
     Mult,
     #[display("/")]
     Div,
+    #[display("==")]
+    Equal,
+    #[display("!=")]
+    NotEqual,
+    #[display("<")]
+    Less,
+    #[display(">")]
+    Greater,
+    #[display("<=")]
+    LessEq,
+    #[display(">=")]
+    GreaterEq,
 }
 
 #[derive(Debug, Clone)]
