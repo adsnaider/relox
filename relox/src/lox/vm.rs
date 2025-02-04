@@ -118,6 +118,10 @@ impl Vm {
                 Instr::Nil => {
                     self.stack.push(Value::Nil).add_ctx(off)?;
                 }
+                Instr::Not => {
+                    let a = self.stack.pop().unwrap().truthy();
+                    self.stack.push(!a).add_ctx(off)?;
+                }
             }
         }
         Ok(())

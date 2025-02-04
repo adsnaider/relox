@@ -51,6 +51,8 @@ pub enum PrefixOp {
     Plus,
     #[display("-")]
     Neg,
+    #[display("!")]
+    Not,
 }
 
 #[derive(Debug, Clone)]
@@ -110,14 +112,4 @@ impl Group {
     pub fn walk<V: AstVisitor>(&self, visitor: &mut V) {
         visitor.visit_expr(&self.expr.node);
     }
-}
-
-impl BinaryOp {
-    pub fn walk<V: AstVisitor>(&self, _visitor: &mut V) {}
-}
-impl PrefixOp {
-    pub fn walk<V: AstVisitor>(&self, _visitor: &mut V) {}
-}
-impl Num {
-    pub fn walk<V: AstVisitor>(&self, _visitor: &mut V) {}
 }

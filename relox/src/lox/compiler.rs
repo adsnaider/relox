@@ -72,6 +72,7 @@ impl AstVisitor for Compiler {
         match op {
             PrefixOp::Plus => {}
             PrefixOp::Neg => self.bytecode.add_instruction(Instr::Negate, 1),
+            PrefixOp::Not => self.bytecode.add_instruction(Instr::Not, 1),
         }
     }
 }

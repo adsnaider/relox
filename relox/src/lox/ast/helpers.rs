@@ -17,7 +17,7 @@ impl BinaryOp {
 impl PrefixOp {
     pub fn binding_power(&self) -> ((), u8) {
         match *self {
-            Self::Plus | Self::Neg => ((), 5),
+            Self::Plus | Self::Neg | Self::Not => ((), 5),
         }
     }
 }
@@ -43,6 +43,7 @@ impl<'a> TryFrom<&Token<'a>> for PrefixOp {
         match value.value {
             TokenValue::Plus => Ok(Self::Plus),
             TokenValue::Minus => Ok(Self::Neg),
+            TokenValue::Bang => Ok(Self::Not),
             _ => Err(ParserError::unexpected_token(value.clone())),
         }
     }

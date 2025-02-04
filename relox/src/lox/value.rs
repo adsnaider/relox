@@ -46,6 +46,14 @@ impl Value {
             }),
         }
     }
+
+    pub fn truthy(&self) -> bool {
+        match self {
+            Value::Bool(b) => *b,
+            Value::Nil => false,
+            _ => true,
+        }
+    }
 }
 
 #[derive(

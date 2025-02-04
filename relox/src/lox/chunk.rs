@@ -20,6 +20,7 @@ pub enum Instr {
     True = 7,
     False = 8,
     Nil = 9,
+    Not = 10,
 }
 
 #[derive(Error, Debug)]
@@ -48,6 +49,7 @@ impl Instr {
             7 => Ok((Self::True, 1)),
             8 => Ok((Self::False, 1)),
             9 => Ok((Self::Nil, 1)),
+            10 => Ok((Self::Not, 1)),
             op => Err(InvalidInstr::UnknownOpCode(op)),
         }
     }
@@ -66,6 +68,7 @@ impl Instr {
             Instr::True => output.push(7),
             Instr::False => output.push(8),
             Instr::Nil => output.push(9),
+            Instr::Not => output.push(10),
         }
     }
 
@@ -84,6 +87,7 @@ impl Instr {
             Instr::True => format!("<true>"),
             Instr::False => format!("<false>"),
             Instr::Nil => format!("<null>"),
+            Instr::Not => format!("<not>"),
         }
     }
 }
