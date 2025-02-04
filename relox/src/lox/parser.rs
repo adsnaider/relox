@@ -77,6 +77,7 @@ impl<'a> Parser<'a> {
                 Expr::group(expr)
             }
             TokenValue::Number(n) => Expr::lit(Lit::Num(Num { value: n })),
+            TokenValue::String(s) => Expr::lit(Lit::Str(s)),
             TokenValue::True => Expr::lit(Lit::Bool(true)),
             TokenValue::False => Expr::lit(Lit::Bool(false)),
             TokenValue::Nil => Expr::lit(Lit::Nil),

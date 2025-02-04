@@ -3,7 +3,10 @@ use std::fmt::Display;
 use derive_more::derive::{Display, Error, From};
 use miette::Diagnostic;
 
-use crate::lox::chunk::Instr;
+use crate::lox::{
+    chunk::Instr,
+    value::{Obj, ObjKind, ValueDiscriminants},
+};
 
 use super::{
     chunk::{Chunk, InvalidInstr},
@@ -90,9 +93,48 @@ impl Vm {
                     self.stack.push(-value).add_ctx(off)?;
                 }
                 Instr::Add => {
-                    let b = self.stack.pop().unwrap().as_num().add_ctx(off)?;
-                    let a = self.stack.pop().unwrap().as_num().add_ctx(off)?;
-                    self.stack.push(a + b).add_ctx(off)?;
+                    let b = self.stack.pop().unwrap();
+                    let a = self.stack.pop().unwrap();
+                    match (a, b) {
+                        (Value::Num(a), Value::Num(b)) => self.stack.push(a + b).add_ctx(off)?,
+                        (
+                            Value::Obj(Obj {
+                                kind: ObjKind::Str(mut a),
+                            }),
+                            Value::Obj(Obj {
+                                kind: ObjKind::Str(b),
+                            }),
+                        ) => {
+                            a.push_str(&b);
+                            self.stack.push(a).add_ctx(off)?;
+                        }
+                        (Value::Num(_), ref b) => {
+                            Err(RErrorKind::TypeError(TypeError::new(
+                                vec![ValueDiscriminants::Num],
+                                b.into(),
+                            )))
+                            .add_ctx(off)?;
+                        }
+                        (
+                            Value::Obj(Obj {
+                                kind: ObjKind::Str(_),
+                            }),
+                            ref b,
+                        ) => {
+                            Err(RErrorKind::TypeError(TypeError::new(
+                                vec![ValueDiscriminants::Str],
+                                b.into(),
+                            )))
+                            .add_ctx(off)?;
+                        }
+                        (ref v, _) => {
+                            Err(RErrorKind::TypeError(TypeError::new(
+                                vec![ValueDiscriminants::Num, ValueDiscriminants::Str],
+                                v.into(),
+                            )))
+                            .add_ctx(off)?;
+                        }
+                    }
                 }
                 Instr::Sub => {
                     let b = self.stack.pop().unwrap().as_num().add_ctx(off)?;

@@ -77,6 +77,7 @@ pub enum Lit {
     Num(Num),
     Bool(bool),
     Nil,
+    Str(String),
 }
 
 #[derive(Debug, Clone, Display)]

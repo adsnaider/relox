@@ -1,14 +1,12 @@
 use relox::lox::{Lox, LoxError};
 
 fn main() -> Result<(), miette::Error> {
-    eval("!true")?;
-    eval("3 == 4")?;
-    eval("3 != 4")?;
-    eval("3 > 4")?;
-    eval("3 < 4")?;
-    eval("3 <= 4")?;
-    eval("3 >= 4")?;
-    eval("!(5 - 4 > 3 * 2 == !nil)")?;
+    eval("\"hello\"")?;
+    eval("\"hello\" == \"hello\"")?;
+    eval("\"hello\" != \"hello\"")?;
+    eval("\"hello\" + \", world\"")?;
+    eval("\"hello\" + \"3\" == \"hello2\"")?;
+    eval("3 + \"hello\" ")?;
     Ok(())
 }
 

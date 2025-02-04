@@ -52,6 +52,10 @@ impl AstVisitor for Compiler {
             Lit::Nil => {
                 self.bytecode.add_instruction(Instr::Nil, 1);
             }
+            Lit::Str(s) => {
+                let idx = self.bytecode.add_constant(Value::str(s.clone()));
+                self.bytecode.add_instruction(Instr::Const(idx), 1);
+            }
         }
     }
 

@@ -109,7 +109,7 @@ pub struct Constants(Vec<Value>);
 
 impl Constants {
     pub fn get(&self, idx: &ConstIdx) -> Option<Value> {
-        self.0.get(idx.0 as usize).copied()
+        self.0.get(idx.0 as usize).cloned()
     }
 
     pub fn push(&mut self, constant: Value) -> ConstIdx {
