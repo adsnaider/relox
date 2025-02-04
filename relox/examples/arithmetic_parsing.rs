@@ -1,7 +1,10 @@
+use miette::{Context, IntoDiagnostic};
 use relox::lox::{
-    ast::{visit::AstVisitor, BinaryExpr, Expr, Group, Lit, LoxAst, PrefixExpr},
+    ast::{visit::AstOutputVisitor, BinaryExpr, Expr, Group, Lit, LoxAst, PrefixExpr},
+    compiler::Compiler,
     lexer::Lexer,
     parser::{Parser, ParserError},
+    vm::{RErrorKind, Vm},
 };
 
 fn main() -> Result<(), miette::Error> {
@@ -15,6 +18,14 @@ fn main() -> Result<(), miette::Error> {
         "(* (+ (- 3) (+ (+ (- 4)))) (- 2))"
     );
     assert_eq!(reverse_polished("1 + 2 + 3 + 4")?, "(+ (+ (+ 1 2) 3) 4)");
+
+    evaluate("4 + 3")?;
+    evaluate("(3 + 4) * 2")?;
+    evaluate("((3) + (4) * 2)")?;
+    evaluate("(-3 + 4) * -2)")?;
+    evaluate("(-3 + ++-4) * -2)")?;
+    evaluate("1 + 2 + 3 + 4")?;
+
     Ok(())
 }
 
@@ -24,9 +35,20 @@ fn reverse_polished(expr: &str) -> Result<String, ParserError> {
     Ok(ReversePolisher.visit_ast(&ast.node))
 }
 
+fn evaluate(expr: &str) -> Result<(), miette::Error> {
+    let lexer = Lexer::new(expr);
+    let ast = Parser::parse(lexer).unwrap();
+    let bytecode = Compiler::compile(ast.node);
+    let mut vm = Vm::new();
+    print!("{expr} = ");
+    vm.interpret(bytecode)
+        .map_err(miette::Error::from)
+        .map_err(|e| e.with_source_code(expr.to_owned()))
+}
+
 struct ReversePolisher;
 
-impl AstVisitor for ReversePolisher {
+impl AstOutputVisitor for ReversePolisher {
     type Output = String;
 
     fn visit_ast(&mut self, ast: &LoxAst) -> Self::Output {

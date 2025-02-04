@@ -1,20 +1,30 @@
 use std::fmt::Display;
 
-use thiserror::Error;
+use derive_more::derive::{Display, Error, From};
+use miette::{Diagnostic, LabeledSpan};
 
 use crate::lox::chunk::Instr;
 
 use super::{
     chunk::{Chunk, InvalidInstr},
-    value::Value,
+    value::{TypeError, Value},
 };
 
-#[derive(Debug, Error)]
-pub enum RuntimeError {
-    #[error(transparent)]
+#[derive(Debug, From, Error, Display, Diagnostic)]
+pub enum RErrorKind {
     InvalidInstr(#[from] InvalidInstr),
-    #[error(transparent)]
     StackError(#[from] StackError),
+    #[diagnostic(transparent)]
+    TypeError(#[from] TypeError),
+}
+
+#[derive(Debug, Error, Display, Diagnostic)]
+#[diagnostic(forward(kind))]
+#[display("{kind}")]
+pub struct RuntimeError {
+    kind: RErrorKind,
+    #[label]
+    offset: usize,
 }
 
 pub type IResult = Result<(), RuntimeError>;
@@ -31,6 +41,22 @@ impl Default for Vm {
     }
 }
 
+trait RuntimeErrorCtx<T> {
+    fn add_ctx(self, offset: usize) -> Result<T, RuntimeError>;
+}
+
+impl<T, E> RuntimeErrorCtx<T> for Result<T, E>
+where
+    E: Into<RErrorKind>,
+{
+    fn add_ctx(self, offset: usize) -> Result<T, RuntimeError> {
+        self.map_err(|e| RuntimeError {
+            kind: e.into(),
+            offset,
+        })
+    }
+}
+
 impl Vm {
     pub fn new() -> Self {
         Self::new_with_stack_size(256)
@@ -44,7 +70,7 @@ impl Vm {
 
     pub fn interpret(&mut self, chunk: Chunk) -> IResult {
         for inst in chunk.instructions() {
-            let (_off, inst) = inst?;
+            let (off, inst) = inst.add_ctx(0)?;
             log::debug!("instruction: {inst:?}");
             log::trace!(
                 "\n========== STACK ===========\n{}\n============================",
@@ -57,31 +83,31 @@ impl Vm {
                 }
                 Instr::Const(const_idx) => {
                     let value = chunk.get_constant(const_idx).unwrap();
-                    self.stack.push(value)?;
+                    self.stack.push(value).add_ctx(off)?;
                 }
                 Instr::Negate => {
-                    let value = self.stack.pop().unwrap();
-                    self.stack.push(-value)?;
+                    let value = self.stack.pop().unwrap().as_num().add_ctx(off)?;
+                    self.stack.push(-value).add_ctx(off)?;
                 }
                 Instr::Add => {
-                    let b = self.stack.pop().unwrap();
-                    let a = self.stack.pop().unwrap();
-                    self.stack.push(a + b)?;
+                    let b = self.stack.pop().unwrap().as_num().add_ctx(off)?;
+                    let a = self.stack.pop().unwrap().as_num().add_ctx(off)?;
+                    self.stack.push(a + b).add_ctx(off)?;
                 }
                 Instr::Sub => {
-                    let b = self.stack.pop().unwrap();
-                    let a = self.stack.pop().unwrap();
-                    self.stack.push(a - b)?;
+                    let b = self.stack.pop().unwrap().as_num().add_ctx(off)?;
+                    let a = self.stack.pop().unwrap().as_num().add_ctx(off)?;
+                    self.stack.push(a - b).add_ctx(off)?;
                 }
                 Instr::Mul => {
-                    let b = self.stack.pop().unwrap();
-                    let a = self.stack.pop().unwrap();
-                    self.stack.push(a * b)?;
+                    let b = self.stack.pop().unwrap().as_num().add_ctx(off)?;
+                    let a = self.stack.pop().unwrap().as_num().add_ctx(off)?;
+                    self.stack.push(a * b).add_ctx(off)?;
                 }
                 Instr::Div => {
-                    let b = self.stack.pop().unwrap();
-                    let a = self.stack.pop().unwrap();
-                    self.stack.push(a / b)?;
+                    let b = self.stack.pop().unwrap().as_num().add_ctx(off)?;
+                    let a = self.stack.pop().unwrap().as_num().add_ctx(off)?;
+                    self.stack.push(a / b).add_ctx(off)?;
                 }
             }
         }
@@ -110,10 +136,10 @@ impl Display for Stack {
     }
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, Display)]
 pub enum StackError {
-    #[error("Stack overflow")]
-    StackOverflow(Value),
+    #[display("Stack overflow")]
+    StackOverflow(#[error(not(source))] Value),
 }
 
 impl Stack {
@@ -123,11 +149,11 @@ impl Stack {
         Self { stack, max_size }
     }
 
-    pub fn push(&mut self, value: Value) -> Result<(), StackError> {
+    pub fn push(&mut self, value: impl Into<Value>) -> Result<(), StackError> {
         if self.stack.len() >= self.max_size {
-            Err(StackError::StackOverflow(value))
+            Err(StackError::StackOverflow(value.into()))
         } else {
-            self.stack.push(value);
+            self.stack.push(value.into());
             Ok(())
         }
     }
