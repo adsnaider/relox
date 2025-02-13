@@ -1,7 +1,6 @@
 use super::{
     ast::{self, visit::AstVisitor, BinaryOp, Lit, LoxAst, PrefixOp},
-    chunk::{Chunk, Instr},
-    value::Value,
+    chunk::{Chunk, ConstValue, Instr},
 };
 
 #[derive(Debug, Default)]
@@ -40,7 +39,7 @@ impl AstVisitor for Compiler {
     fn visit_literal(&mut self, literal_expr: &Lit) {
         match literal_expr {
             Lit::Num(num) => {
-                let idx = self.bytecode.add_constant(Value::num(num.value));
+                let idx = self.bytecode.add_constant(ConstValue::Num(num.value));
                 self.bytecode.add_instruction(Instr::Const(idx), 1);
             }
             Lit::Bool(true) => {
@@ -53,7 +52,7 @@ impl AstVisitor for Compiler {
                 self.bytecode.add_instruction(Instr::Nil, 1);
             }
             Lit::Str(s) => {
-                let idx = self.bytecode.add_constant(Value::str(s.clone()));
+                let idx = self.bytecode.add_constant(ConstValue::Str(s.clone()));
                 self.bytecode.add_instruction(Instr::Const(idx), 1);
             }
         }

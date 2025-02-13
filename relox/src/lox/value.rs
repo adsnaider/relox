@@ -6,6 +6,8 @@ use derive_more::derive::{
 use miette::Diagnostic;
 use thiserror::Error;
 
+use super::vm::gc::Gc;
+
 #[derive(Debug, Error, Clone, Diagnostic)]
 #[error("Type error")]
 #[diagnostic(help("Wanted: {wants} but got: `{got}`"))]
@@ -49,20 +51,7 @@ pub enum Value {
     Bool(bool),
     #[display("null")]
     Nil,
-    Obj(Obj),
-}
-
-impl From<String> for Value {
-    fn from(value: String) -> Self {
-        Self::str(value)
-    }
-}
-impl From<Box<String>> for Value {
-    fn from(value: Box<String>) -> Self {
-        Self::Obj(Obj {
-            kind: ObjKind::Str(value),
-        })
-    }
+    Str(Gc<str>),
 }
 
 #[derive(Debug, Clone, Display, From)]
@@ -93,9 +82,7 @@ impl From<&Value> for ValueDiscriminants {
             Value::Num(_) => Self::Num,
             Value::Bool(_) => Self::Bool,
             Value::Nil => Self::Nil,
-            Value::Obj(Obj {
-                kind: ObjKind::Str(_),
-            }) => Self::Str,
+            Value::Str(_) => Self::Str,
         }
     }
 }
@@ -106,14 +93,7 @@ impl PartialEq for Value {
             (Value::Num(a), Value::Num(b)) => a == b,
             (Value::Nil, Value::Nil) => true,
             (Value::Bool(a), Value::Bool(b)) => a == b,
-            (
-                Value::Obj(Obj {
-                    kind: ObjKind::Str(a),
-                }),
-                Value::Obj(Obj {
-                    kind: ObjKind::Str(b),
-                }),
-            ) => a == b,
+            (Value::Str(a), Value::Str(b)) => a.data() == b.data(),
             _ => false,
         }
     }
@@ -124,10 +104,8 @@ impl Value {
         Self::Num(Num(value))
     }
 
-    pub fn str(value: String) -> Self {
-        Self::Obj(Obj {
-            kind: ObjKind::Str(Box::new(value.into())),
-        })
+    pub fn str(value: Gc<str>) -> Self {
+        Self::Str(value)
     }
 
     pub fn as_num(&self) -> Result<Num, TypeError> {

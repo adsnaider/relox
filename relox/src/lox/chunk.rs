@@ -1,5 +1,3 @@
-use crate::lox::value::Value;
-
 use derive_more::Display;
 use thiserror::Error;
 
@@ -104,15 +102,21 @@ impl Instr {
     }
 }
 
+#[derive(Debug, Clone, Display)]
+pub enum ConstValue {
+    Num(f64),
+    Str(String),
+}
+
 #[derive(Debug, Default)]
-pub struct Constants(Vec<Value>);
+pub struct Constants(Vec<ConstValue>);
 
 impl Constants {
-    pub fn get(&self, idx: &ConstIdx) -> Option<Value> {
+    pub fn get(&self, idx: &ConstIdx) -> Option<ConstValue> {
         self.0.get(idx.0 as usize).cloned()
     }
 
-    pub fn push(&mut self, constant: Value) -> ConstIdx {
+    pub fn push(&mut self, constant: ConstValue) -> ConstIdx {
         self.0.push(constant);
         ConstIdx((self.0.len() - 1).try_into().unwrap())
     }
@@ -155,11 +159,11 @@ impl Chunk {
         self.code.add_instruction(inst, line);
     }
 
-    pub fn add_constant(&mut self, constant: Value) -> ConstIdx {
+    pub fn add_constant(&mut self, constant: ConstValue) -> ConstIdx {
         self.consts.push(constant)
     }
 
-    pub fn get_constant(&self, idx: ConstIdx) -> Option<Value> {
+    pub fn get_constant(&self, idx: ConstIdx) -> Option<ConstValue> {
         self.consts.get(&idx)
     }
 
@@ -218,7 +222,7 @@ mod tests {
     fn dissasembly() {
         let mut chunk = Chunk::new();
         chunk.add_instruction(Instr::Return, 123);
-        let idx = chunk.add_constant(Value(10.2));
+        let idx = chunk.add_constant(ConstValue::Num(10.2));
         chunk.add_instruction(Instr::Const(idx), 123);
         chunk.add_instruction(Instr::Return, 124);
         let disassembled = chunk.disassemble();

@@ -1,17 +1,17 @@
 use std::fmt::Display;
 
 use derive_more::derive::{Display, Error, From};
+use gc::Heap;
 use miette::Diagnostic;
 
-use crate::lox::{
-    chunk::Instr,
-    value::{Obj, ObjKind, ValueDiscriminants},
-};
+use crate::lox::{chunk::Instr, value::ValueDiscriminants};
 
 use super::{
-    chunk::{Chunk, InvalidInstr},
+    chunk::{Chunk, ConstValue, InvalidInstr},
     value::{TypeError, Value},
 };
+
+pub mod gc;
 
 #[derive(Debug, From, Error, Display, Diagnostic)]
 pub enum RErrorKind {
@@ -36,6 +36,7 @@ pub type IResult = Result<(), RuntimeError>;
 #[derive(Debug)]
 pub struct Vm {
     stack: Stack,
+    heap: Heap,
 }
 
 impl Default for Vm {
@@ -60,6 +61,12 @@ where
     }
 }
 
+impl Drop for Vm {
+    fn drop(&mut self) {
+        unsafe { self.heap.drain() };
+    }
+}
+
 impl Vm {
     pub fn new() -> Self {
         Self::new_with_stack_size(256)
@@ -68,6 +75,17 @@ impl Vm {
     pub fn new_with_stack_size(max_stack_size: usize) -> Self {
         Self {
             stack: Stack::new(max_stack_size),
+            heap: Heap::new(),
+        }
+    }
+
+    fn const_to_runtime(&mut self, value: ConstValue) -> Value {
+        match value {
+            ConstValue::Num(n) => Value::num(n),
+            ConstValue::Str(s) => {
+                let str = self.heap.push(s.as_str());
+                Value::str(str)
+            }
         }
     }
 
@@ -86,6 +104,7 @@ impl Vm {
                 }
                 Instr::Const(const_idx) => {
                     let value = chunk.get_constant(const_idx).unwrap();
+                    let value = self.const_to_runtime(value);
                     self.stack.push(value).add_ctx(off)?;
                 }
                 Instr::Negate => {
@@ -97,16 +116,10 @@ impl Vm {
                     let a = self.stack.pop().unwrap();
                     match (a, b) {
                         (Value::Num(a), Value::Num(b)) => self.stack.push(a + b).add_ctx(off)?,
-                        (
-                            Value::Obj(Obj {
-                                kind: ObjKind::Str(mut a),
-                            }),
-                            Value::Obj(Obj {
-                                kind: ObjKind::Str(b),
-                            }),
-                        ) => {
-                            a.push_str(&b);
-                            self.stack.push(a).add_ctx(off)?;
+                        (Value::Str(a), Value::Str(b)) => {
+                            let value = String::from_iter([a.data(), b.data()]);
+                            let string = self.heap.push(value.as_str());
+                            self.stack.push(string).add_ctx(off)?;
                         }
                         (Value::Num(_), ref b) => {
                             Err(RErrorKind::TypeError(TypeError::new(
@@ -115,12 +128,7 @@ impl Vm {
                             )))
                             .add_ctx(off)?;
                         }
-                        (
-                            Value::Obj(Obj {
-                                kind: ObjKind::Str(_),
-                            }),
-                            ref b,
-                        ) => {
+                        (Value::Str(_), ref b) => {
                             Err(RErrorKind::TypeError(TypeError::new(
                                 vec![ValueDiscriminants::Str],
                                 b.into(),

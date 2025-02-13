@@ -1,6 +1,7 @@
 use relox::lox::{Lox, LoxError};
 
 fn main() -> Result<(), miette::Error> {
+    env_logger::init();
     eval("\"hello\"")?;
     eval("\"hello\" == \"hello\"")?;
     eval("\"hello\" != \"hello\"")?;
