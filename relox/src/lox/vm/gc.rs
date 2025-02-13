@@ -1,4 +1,9 @@
-use std::{alloc::Layout, clone::CloneToUninit, fmt::Display, ops::Deref, ptr::NonNull};
+use std::{
+    alloc::Layout, borrow::Borrow, clone::CloneToUninit, fmt::Display, ops::Deref, ptr::NonNull,
+};
+
+use derive_more::derive::{Deref, Display};
+use hashbrown::HashSet;
 
 impl From<Gc<str>> for GcObj {
     fn from(value: Gc<str>) -> Self {
@@ -30,6 +35,17 @@ impl<T: ?Sized> Clone for Gc<T> {
         Self { value: self.value }
     }
 }
+impl<T: ?Sized + PartialEq> PartialEq for Gc<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.data() == other.data()
+    }
+}
+impl<T: ?Sized + Eq> Eq for Gc<T> {}
+impl<T: ?Sized + std::hash::Hash> std::hash::Hash for Gc<T> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.data().hash(state)
+    }
+}
 
 #[repr(C)]
 pub struct GcData<T: ?Sized> {
@@ -51,9 +67,16 @@ impl<T: ?Sized> Deref for Gc<T> {
     }
 }
 
+impl<T: ?Sized> Borrow<T> for Gc<T> {
+    fn borrow(&self) -> &T {
+        self.data()
+    }
+}
+
 #[derive(Debug)]
 pub struct Heap {
-    head: Option<GcObj>,
+    objects: GcObjects,
+    strings: HashSet<Gc<str>>,
 }
 
 impl Default for Heap {
@@ -62,7 +85,21 @@ impl Default for Heap {
     }
 }
 
-impl Heap {
+#[derive(Debug, Display, Clone, Deref)]
+pub struct InternedStr(Gc<str>);
+
+impl PartialEq for InternedStr {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self.0.value.as_ptr(), other.0.value.as_ptr())
+    }
+}
+
+#[derive(Debug)]
+pub struct GcObjects {
+    head: Option<GcObj>,
+}
+
+impl GcObjects {
     pub fn new() -> Self {
         Self { head: None }
     }
@@ -114,5 +151,32 @@ impl Heap {
 
     pub unsafe fn drain(&mut self) {
         while let Some(()) = unsafe { self.pop() } {}
+    }
+}
+
+impl Heap {
+    pub fn new() -> Self {
+        Self {
+            objects: GcObjects::new(),
+            strings: HashSet::new(),
+        }
+    }
+    pub fn push<T: ?Sized + CloneToUninit>(&mut self, value: &T) -> Gc<T>
+    where
+        Gc<T>: Into<GcObj>,
+    {
+        self.objects.push(value)
+    }
+
+    pub fn push_interned(&mut self, value: &str) -> InternedStr {
+        let value = self
+            .strings
+            .get_or_insert_with(value, |s| self.objects.push(s));
+        InternedStr(value.clone())
+    }
+
+    pub unsafe fn drain(&mut self) {
+        unsafe { self.objects.drain() };
+        drop(core::mem::take(&mut self.strings));
     }
 }

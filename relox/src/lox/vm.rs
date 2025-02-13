@@ -1,3 +1,5 @@
+pub mod gc;
+
 use std::fmt::Display;
 
 use derive_more::derive::{Display, Error, From};
@@ -10,8 +12,6 @@ use super::{
     chunk::{Chunk, ConstValue, InvalidInstr},
     value::{TypeError, Value},
 };
-
-pub mod gc;
 
 #[derive(Debug, From, Error, Display, Diagnostic)]
 pub enum RErrorKind {
@@ -83,7 +83,7 @@ impl Vm {
         match value {
             ConstValue::Num(n) => Value::num(n),
             ConstValue::Str(s) => {
-                let str = self.heap.push(s.as_str());
+                let str = self.heap.push_interned(s.as_str());
                 Value::str(str)
             }
         }
@@ -118,7 +118,7 @@ impl Vm {
                         (Value::Num(a), Value::Num(b)) => self.stack.push(a + b).add_ctx(off)?,
                         (Value::Str(a), Value::Str(b)) => {
                             let value = String::from_iter([a.data(), b.data()]);
-                            let string = self.heap.push(value.as_str());
+                            let string = self.heap.push_interned(value.as_str());
                             self.stack.push(string).add_ctx(off)?;
                         }
                         (Value::Num(_), ref b) => {

@@ -6,7 +6,7 @@ use derive_more::derive::{
 use miette::Diagnostic;
 use thiserror::Error;
 
-use super::vm::gc::Gc;
+use super::vm::gc::InternedStr;
 
 #[derive(Debug, Error, Clone, Diagnostic)]
 #[error("Type error")]
@@ -51,7 +51,7 @@ pub enum Value {
     Bool(bool),
     #[display("null")]
     Nil,
-    Str(Gc<str>),
+    Str(InternedStr),
 }
 
 #[derive(Debug, Clone, Display, From)]
@@ -104,7 +104,7 @@ impl Value {
         Self::Num(Num(value))
     }
 
-    pub fn str(value: Gc<str>) -> Self {
+    pub fn str(value: InternedStr) -> Self {
         Self::Str(value)
     }
 
