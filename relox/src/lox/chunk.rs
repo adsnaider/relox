@@ -27,6 +27,7 @@ pub enum Instr {
     Print = 14,
     Pop = 15,
     DefineGlobal(GlobalId) = 16,
+    GetGlobal(GlobalId) = 17,
 }
 
 #[derive(Error, Debug)]
@@ -63,12 +64,21 @@ impl Instr {
             15 => Ok((Self::Pop, 1)),
             16 => {
                 let idx = code
-                    .get(1..2)
+                    .get(1..=2)
                     .ok_or(InvalidInstr::UnexpectedEof)?
                     .try_into()
                     .unwrap();
                 let idx = u16::from_le_bytes(idx);
                 Ok((Self::DefineGlobal(idx.into()), 3))
+            }
+            17 => {
+                let idx = code
+                    .get(1..=2)
+                    .ok_or(InvalidInstr::UnexpectedEof)?
+                    .try_into()
+                    .unwrap();
+                let idx = u16::from_le_bytes(idx);
+                Ok((Self::GetGlobal(idx.into()), 3))
             }
             op => Err(InvalidInstr::UnknownOpCode(op)),
         }
@@ -98,6 +108,10 @@ impl Instr {
                 output.push(16);
                 output.extend_from_slice(&global_id.to_le_bytes());
             }
+            Instr::GetGlobal(global_id) => {
+                output.push(17);
+                output.extend_from_slice(&global_id.to_le_bytes());
+            }
         }
     }
 
@@ -123,6 +137,7 @@ impl Instr {
             Instr::Print => format!("<print>"),
             Instr::Pop => format!("<pop>"),
             Instr::DefineGlobal(global_id) => format!("<define global> [{global_id}]"),
+            Instr::GetGlobal(global_id) => format!("<get global> [{global_id}]"),
         }
     }
 }

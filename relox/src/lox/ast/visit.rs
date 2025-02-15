@@ -55,4 +55,6 @@ pub trait AstVisitor: Sized {
     fn visit_binary_op(&mut self, _op: &BinaryOp) {}
 
     fn visit_prefix_op(&mut self, _op: &PrefixOp) {}
+
+    fn visit_ident(&mut self, ident: &Ident) {}
 }

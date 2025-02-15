@@ -200,6 +200,7 @@ impl Parser {
             }
             TokenValue::Number(n) => Expr::lit(Lit::Num(Num { value: n })),
             TokenValue::String(s) => Expr::lit(Lit::Str(s)),
+            TokenValue::Ident(name) => Expr::ident(name),
             TokenValue::True => Expr::lit(Lit::Bool(true)),
             TokenValue::False => Expr::lit(Lit::Bool(false)),
             TokenValue::Nil => Expr::lit(Lit::Nil),

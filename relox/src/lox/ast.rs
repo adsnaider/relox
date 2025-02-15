@@ -31,6 +31,12 @@ pub enum Expr {
     Group(Box<Group>),
     Binary(Box<BinaryExpr>),
     PrefixExpr(Box<PrefixExpr>),
+    Ident(Box<Ident>),
+}
+
+#[derive(Debug, Clone)]
+pub struct Ident {
+    pub name: String,
 }
 
 #[derive(Debug, Clone)]
@@ -131,6 +137,7 @@ impl Expr {
             Expr::Group(group) => visitor.visit_group(group),
             Expr::Binary(binary_expr) => visitor.visit_binary_expr(binary_expr),
             Expr::PrefixExpr(prefix_expr) => visitor.visit_prefix_expr(prefix_expr),
+            Expr::Ident(ident) => visitor.visit_ident(ident),
         }
     }
 }

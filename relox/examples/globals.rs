@@ -7,7 +7,7 @@ fn main() -> Result<(), miette::Error> {
     eval(
         r#"
             var a = 3;
-            var y = 4;
+            var b = 4;
             var z;
             print a;
             print b;

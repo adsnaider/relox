@@ -73,4 +73,8 @@ impl Expr {
     pub fn unary(op: PrefixOp, rhs: Spanned<Expr>) -> Self {
         Self::PrefixExpr(Box::new(PrefixExpr { op, rhs }))
     }
+
+    pub fn ident(ident: String) -> Self {
+        Self::Ident(Box::new(Ident { name: ident }))
+    }
 }

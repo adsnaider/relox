@@ -21,6 +21,8 @@ pub enum RErrorKind {
     StackError(#[from] StackError),
     #[diagnostic(transparent)]
     TypeError(#[from] TypeError),
+    #[display("Undefined reference to global: {_0}")]
+    UndefinedGlobal(#[error(not(source))] GlobalId),
 }
 
 #[derive(Debug, Error, Display, Diagnostic)]
@@ -201,6 +203,15 @@ impl Vm {
                 Instr::DefineGlobal(global_id) => {
                     let value = self.stack.pop().unwrap();
                     let _ = self.globals.insert(global_id, value);
+                }
+                Instr::GetGlobal(global_id) => {
+                    let value = self
+                        .globals
+                        .get(&global_id)
+                        .ok_or(RErrorKind::UndefinedGlobal(global_id))
+                        .add_ctx(off)?
+                        .clone();
+                    self.stack.push(value).add_ctx(off)?;
                 }
             }
         }

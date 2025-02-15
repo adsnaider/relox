@@ -17,6 +17,7 @@ use vm::{RuntimeError, Vm};
 #[derive(Debug)]
 pub struct Lox {
     vm: Vm,
+    compiler: Compiler,
 }
 
 #[derive(From, Debug, Error, Diagnostic, Display)]
@@ -63,17 +64,16 @@ impl<'a, T, E: Into<LoxErrorKind<'a>>> LoxErrorCtx<'a, T> for Result<T, E> {
 
 impl Lox {
     pub fn new() -> Self {
-        Self { vm: Vm::default() }
-    }
-
-    pub fn new_with(vm: Vm) -> Self {
-        Self { vm }
+        Self {
+            vm: Vm::default(),
+            compiler: Compiler::new(),
+        }
     }
 
     pub fn eval<'a>(&mut self, source: &'a str) -> Result<(), LoxError<'a>> {
         let lexer = Lexer::new(source);
         let ast = Parser::parse(lexer).add_ctx(source)?;
-        let chunk = Compiler::compile(ast.node);
+        let chunk = self.compiler.compile(ast.node);
         self.vm.interpret(chunk).add_ctx(source)?;
         Ok(())
     }

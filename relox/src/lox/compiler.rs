@@ -22,18 +22,22 @@ pub struct Compiler {
 }
 
 impl Compiler {
-    pub fn compile(ast: LoxAst) -> Chunk {
+    pub fn compile(&mut self, ast: LoxAst) -> Chunk {
         let globals = {
             let mut resolver = GlobalResolver::default();
             resolver.visit_ast(&ast);
             resolver.globals
         };
-        let mut compiler = Self {
+        self.globals.extend(globals);
+        self.visit_ast(&ast);
+        core::mem::take(&mut self.bytecode)
+    }
+
+    pub fn new() -> Self {
+        Self {
             bytecode: Chunk::new(),
-            globals,
-        };
-        compiler.visit_ast(&ast);
-        compiler.bytecode
+            globals: HashMap::new(),
+        }
     }
 }
 
@@ -130,5 +134,10 @@ impl AstVisitor for Compiler {
             PrefixOp::Neg => self.bytecode.add_instruction(Instr::Negate, 1),
             PrefixOp::Not => self.bytecode.add_instruction(Instr::Not, 1),
         }
+    }
+
+    fn visit_ident(&mut self, ident: &ast::Ident) {
+        let global = self.globals.get(&ident.name).unwrap();
+        self.bytecode.add_instruction(Instr::GetGlobal(*global), 1);
     }
 }
