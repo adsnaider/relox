@@ -9,15 +9,29 @@ pub fn any<'a>(lexer: &mut StructuredLexer<'a>) -> PResult<'a, Token<'a>> {
     lexer
         .next()
         .transpose()
-        .unwrap_or(Err(ParserError::UnexpectedEof))
+        .unwrap_or(Err(ParserError::unexpected_eof(None, lexer.lexer.source())))
 }
 
-pub fn opt<'a, O: 'a>(mut parser: impl Parse<'a, O>) -> impl for<'b> Parse<'a, Option<O>> {
-    move |lexer: &mut StructuredLexer<'a>| match parser.parse_next(lexer) {
-        Ok(out) => Ok(Some(out)),
-        Err(ParserError::UnexpectedEof) => Ok(None),
-        Err(e) => Err(e),
+pub fn opt<'a, O: 'a, P>(mut parser: P) -> impl Parse<'a, Option<O>>
+where
+    P: Parse<'a, O>,
+{
+    move |lexer: &mut StructuredLexer<'a>| {
+        log::debug!("Lexer EOF?: {}", lexer.is_eof());
+        if lexer.is_eof() {
+            Ok(None)
+        } else {
+            parser.parse_next(lexer).map(Some)
+        }
     }
+}
+
+pub fn alt<'a, O: 'a, Alts: Alt<'a, O>>(mut alts: Alts) -> impl Parse<'a, O> {
+    move |lexer: &mut StructuredLexer<'a>| alts.alt(lexer)
+}
+
+pub trait Alt<'a, O> {
+    fn alt(&mut self, lexer: &mut StructuredLexer<'a>) -> PResult<'a, O>;
 }
 
 pub fn empty<'a>(_lexer: &mut StructuredLexer<'a>) -> PResult<'a, ()> {
@@ -38,6 +52,18 @@ macro_rules! dispatch {
                 )*
             }
         }
+    }
+}
+
+impl<'a, O: 'a, P1, P2> Alt<'a, O> for (P1, P2)
+where
+    P1: Parse<'a, O>,
+    P2: Parse<'a, O>,
+{
+    fn alt(&mut self, lexer: &mut StructuredLexer<'a>) -> PResult<'a, O> {
+        self.0
+            .parse_next(lexer)
+            .or_else(|_| self.1.parse_next(lexer))
     }
 }
 

@@ -9,7 +9,20 @@ use visit::AstVisitor;
 
 #[derive(Debug, Clone)]
 pub struct LoxAst {
-    pub expr: Spanned<Expr>,
+    pub stmts: Vec<Spanned<Stmt>>,
+}
+
+#[derive(Debug, Clone)]
+pub enum Stmt {
+    Expr(Box<Spanned<Expr>>),
+    Print(Box<Spanned<Expr>>),
+    VarDecl(Box<Spanned<VarDecl>>),
+}
+
+#[derive(Debug, Clone)]
+pub struct VarDecl {
+    pub name: Spanned<String>,
+    pub rhs: Option<Spanned<Expr>>,
 }
 
 #[derive(Debug, Clone)]
@@ -87,7 +100,27 @@ pub struct Num {
 
 impl LoxAst {
     pub fn walk<V: AstVisitor>(&self, visitor: &mut V) {
-        visitor.visit_expr(&self.expr.node)
+        for stmt in &self.stmts {
+            visitor.visit_stmt(&stmt.node)
+        }
+    }
+}
+
+impl Stmt {
+    pub fn walk<V: AstVisitor>(&self, visitor: &mut V) {
+        match self {
+            Stmt::Expr(expr) => visitor.visit_expr_stmt(&&expr.node),
+            Stmt::Print(expr) => visitor.visit_print_stmt(&expr.node),
+            Stmt::VarDecl(decl) => visitor.visit_var_decl(&decl.node),
+        }
+    }
+}
+
+impl VarDecl {
+    pub fn walk<V: AstVisitor>(&self, visitor: &mut V) {
+        if let Some(expr) = &self.rhs {
+            visitor.visit_expr(&expr.node);
+        }
     }
 }
 

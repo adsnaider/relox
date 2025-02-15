@@ -2,7 +2,6 @@ use std::borrow::Cow;
 
 use derive_more::derive::Display;
 use miette::{Diagnostic, SourceCode, SourceOffset, SourceSpan};
-use ownit::Ownit;
 use strum::EnumDiscriminants;
 use thiserror::Error;
 
@@ -20,6 +19,14 @@ struct Eof;
 impl<'a> Lexer<'a> {
     pub fn new(input: &'a str) -> Self {
         Self { input, offset: 0 }
+    }
+
+    pub fn source(&self) -> &'a str {
+        self.input
+    }
+
+    pub fn is_eof(&self) -> bool {
+        self.offset() >= self.input.len()
     }
 
     pub fn drain(&mut self) -> Self {
@@ -147,7 +154,7 @@ impl SourceCode for Lexeme<'_> {
     }
 }
 
-#[derive(Debug, Error, Clone, Ownit, Diagnostic)]
+#[derive(Debug, Error, Clone, Diagnostic)]
 pub enum LexError<'a> {
     #[error("Unexpected character: {lexeme}")]
     #[diagnostic(code(lexer::unexpected_char))]
@@ -260,7 +267,7 @@ const fn reserved_keywords(keyword: &[u8]) -> Option<TokenValue> {
     }
 }
 
-#[derive(Debug, Clone, Display, Ownit)]
+#[derive(Debug, Clone, Display)]
 #[display("'{}'", self.payload())]
 pub struct Lexeme<'a> {
     pub span: Span,
@@ -320,7 +327,7 @@ impl<'a> Lexeme<'a> {
     }
 }
 
-#[derive(Debug, Clone, Ownit)]
+#[derive(Debug, Clone)]
 pub struct Token<'a> {
     pub value: TokenValue,
     pub lexeme: Lexeme<'a>,
@@ -332,8 +339,9 @@ impl Token<'_> {
     }
 }
 
-#[derive(Debug, Clone, EnumDiscriminants, PartialEq, PartialOrd, Ownit)]
+#[derive(Debug, Clone, EnumDiscriminants, PartialEq, PartialOrd)]
 #[strum_discriminants(name(TokenVariants))]
+#[strum_discriminants(derive(Display))]
 pub enum TokenValue {
     LeftParen,
     RightParen,

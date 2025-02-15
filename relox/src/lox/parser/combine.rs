@@ -33,6 +33,15 @@ pub trait Parse<'a, O: 'a> {
             state: current_state,
         })
     }
+    fn try_next(&mut self, lexer: &mut StructuredLexer<'a>) -> Option<O> {
+        let original_state = lexer.checkpoint();
+        if let Ok(parsed) = self.parse_next(lexer) {
+            Some(parsed)
+        } else {
+            lexer.restore(original_state);
+            None
+        }
+    }
 }
 
 #[derive(Deref, DerefMut)]
@@ -73,7 +82,13 @@ where
 
 impl<'a> Parse<'a, Token<'a>> for TokenValue {
     fn parse_next(&mut self, lexer: &mut StructuredLexer<'a>) -> PResult<'a, Token<'a>> {
-        let next = any.parse_next(lexer)?;
+        let next = any.parse_next(lexer).map_err(|e| match e {
+            ParserError::UnexpectedEof(mut e) => {
+                e.wanted = Some(TokenVariants::from(&*self));
+                ParserError::UnexpectedEof(e)
+            }
+            e => e,
+        })?;
         if next.value == *self {
             Ok(next)
         } else {
@@ -115,6 +130,10 @@ impl<'a> StructuredLexer<'a> {
             Some(Err(e)) => Err(self.lex_panic(e)),
             None => Ok(None),
         }
+    }
+
+    pub fn is_eof(&self) -> bool {
+        self.lexer.is_eof()
     }
 
     pub fn enter_span(&mut self) -> EnterSpan {

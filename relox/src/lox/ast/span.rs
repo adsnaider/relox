@@ -1,6 +1,6 @@
-use ownit::Ownit;
+use miette::{SourceOffset, SourceSpan};
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Ownit)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Span {
     pub start: usize,
     pub end: usize,
@@ -25,5 +25,11 @@ pub struct Spanned<T> {
 impl<T> Spanned<T> {
     pub const fn new(node: T, span: Span) -> Self {
         Self { node, span }
+    }
+}
+
+impl From<Span> for SourceSpan {
+    fn from(value: Span) -> Self {
+        Self::new(SourceOffset::from(value.start), value.end - value.start)
     }
 }

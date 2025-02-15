@@ -16,6 +16,22 @@ pub trait AstVisitor: Sized {
         ast.walk(self)
     }
 
+    fn visit_stmt(&mut self, stmt: &Stmt) {
+        stmt.walk(self)
+    }
+
+    fn visit_expr_stmt(&mut self, expr: &Expr) {
+        expr.walk(self)
+    }
+
+    fn visit_print_stmt(&mut self, expr: &Expr) {
+        expr.walk(self)
+    }
+
+    fn visit_var_decl(&mut self, var_decl: &VarDecl) {
+        var_decl.walk(self)
+    }
+
     fn visit_expr(&mut self, expr: &Expr) {
         expr.walk(self)
     }
