@@ -1,5 +1,5 @@
 use crate::lox::{
-    lexer::Token,
+    lexer::{Token, TokenVariants},
     parser::{PResult, ParserError},
 };
 
@@ -10,6 +10,15 @@ pub fn any<'a>(lexer: &mut StructuredLexer<'a>) -> PResult<'a, Token<'a>> {
         .next()
         .transpose()
         .unwrap_or(Err(ParserError::unexpected_eof(None, lexer.lexer.source())))
+}
+
+pub fn take_until<'a>(wants: TokenVariants) -> impl Parse<'a, Token<'a>> {
+    move |lexer: &mut _| loop {
+        let token = any.parse_next(lexer)?;
+        if TokenVariants::from(&token.value) == wants {
+            break Ok(token);
+        }
+    }
 }
 
 pub fn opt<'a, O: 'a, P>(mut parser: P) -> impl Parse<'a, Option<O>>

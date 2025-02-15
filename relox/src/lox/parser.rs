@@ -2,7 +2,7 @@ mod combine;
 
 use std::fmt::Display;
 
-use combine::{any, opt, Parse, StructuredLexer};
+use combine::{any, opt, take_until, Parse, StructuredLexer};
 use miette::Diagnostic;
 use thiserror::Error;
 
@@ -13,7 +13,7 @@ use super::{
         span::{Span, Spanned},
         Expr, Lit, LoxAst, Num, PrefixOp, Stmt, VarDecl,
     },
-    lexer::{LexError, Lexeme, Lexer, Token, TokenValue, TokenVariants},
+    lexer::{LexError, Lexer, Token, TokenValue, TokenVariants},
 };
 
 #[derive(Debug)]
@@ -87,20 +87,42 @@ impl Parser {
         Self {}
     }
 
-    pub fn parse<'a>(lexer: Lexer<'a>) -> PResult<'a, Spanned<LoxAst>> {
+    pub fn parse<'a>(lexer: Lexer<'a>) -> Result<Spanned<LoxAst>, Vec<ParserError<'a>>> {
         let mut this = Self::new();
         this.ast(&mut StructuredLexer::new(lexer))
     }
 
-    pub fn ast<'a>(&mut self, lexer: &mut StructuredLexer<'a>) -> PResult<'a, Spanned<LoxAst>> {
+    pub fn ast<'a>(
+        &mut self,
+        lexer: &mut StructuredLexer<'a>,
+    ) -> Result<Spanned<LoxAst>, Vec<ParserError<'a>>> {
         log::debug!("Parsing the AST");
         let span = lexer.enter_span();
         let mut stmts = Vec::new();
-        while let Some(stmt) = opt(|l: &mut _| self.parse_declaration(l)).parse_next(lexer)? {
-            stmts.push(stmt);
+        let mut errors = Vec::new();
+        loop {
+            let value = opt(|l: &mut _| self.parse_declaration(l)).parse_next(lexer);
+            match value {
+                Ok(Some(stmt)) => stmts.push(stmt),
+                Ok(None) => break,
+                Err(ParserError::LexerError(e)) => return Err(vec![ParserError::LexerError(e)]),
+                Err(e) => {
+                    errors.push(e);
+                    self.synchronize(lexer);
+                }
+            }
         }
-        let span = span.end(lexer);
-        Ok(Spanned::new(LoxAst { stmts }, span))
+        if errors.is_empty() {
+            let span = span.end(lexer);
+            Ok(Spanned::new(LoxAst { stmts }, span))
+        } else {
+            Err(errors)
+        }
+    }
+
+    fn synchronize<'a>(&mut self, lexer: &mut StructuredLexer<'a>) {
+        log::debug!("Synchronizing on error");
+        let _ = take_until(TokenVariants::Semicolon).parse_next(lexer);
     }
 
     pub fn parse_declaration<'a>(
@@ -150,8 +172,11 @@ impl Parser {
         let TokenValue::Ident(name) = tname.value else {
             return Err(ParserError::unexpected_token(tname));
         };
-        TokenValue::Equal.parse_next(lexer)?;
-        let rhs = (|l: &mut _| self.expression(l, 0)).try_next(lexer);
+        let rhs = if let Some(_) = TokenValue::Equal.try_next(lexer) {
+            Some(self.expression(lexer, 0)?)
+        } else {
+            None
+        };
         TokenValue::Semicolon.parse_next(lexer)?;
         Ok(span.end(lexer).spanned(VarDecl {
             name: tname.lexeme.span.spanned(name),

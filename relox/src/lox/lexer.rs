@@ -25,10 +25,6 @@ impl<'a> Lexer<'a> {
         self.input
     }
 
-    pub fn is_eof(&self) -> bool {
-        self.offset() >= self.input.len()
-    }
-
     pub fn drain(&mut self) -> Self {
         let this = self.clone();
         self.input = "";

@@ -9,7 +9,7 @@ pub mod vm;
 use compiler::Compiler;
 use derive_more::derive::{Display, Error, From};
 use lexer::Lexer;
-use miette::Diagnostic;
+use miette::{Diagnostic, GraphicalReportHandler};
 use parser::{Parser, ParserError};
 use vm::{RuntimeError, Vm};
 
@@ -21,13 +21,17 @@ pub struct Lox {
 
 #[derive(From, Debug, Error, Diagnostic, Display)]
 pub enum LoxErrorKind<'a> {
-    #[diagnostic(transparent)]
-    ParseError(#[error(not(source))] ParserError<'a>),
+    #[display("Parse error")]
+    ParseError(
+        #[related]
+        #[error(not(source))]
+        Vec<ParserError<'a>>,
+    ),
     #[diagnostic(transparent)]
     RuntimeError(RuntimeError),
 }
 
-#[derive(Debug, Error, Diagnostic, Display)]
+#[derive(Error, Diagnostic, Display)]
 #[display("{kind}")]
 #[diagnostic(forward(kind))]
 pub struct LoxError<'a> {
@@ -35,6 +39,13 @@ pub struct LoxError<'a> {
     #[source_code]
     source: &'a str,
     kind: LoxErrorKind<'a>,
+}
+
+impl core::fmt::Debug for LoxError<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let handler = GraphicalReportHandler::new();
+        handler.render_report(f, self)
+    }
 }
 
 trait LoxErrorCtx<'a, T> {
@@ -63,7 +74,6 @@ impl Lox {
         let lexer = Lexer::new(source);
         let ast = Parser::parse(lexer).add_ctx(source)?;
         let chunk = Compiler::compile(ast.node);
-        // println!("{}", chunk.disassemble());
         self.vm.interpret(chunk).add_ctx(source)?;
         Ok(())
     }

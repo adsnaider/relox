@@ -132,8 +132,11 @@ impl<'a> StructuredLexer<'a> {
         }
     }
 
-    pub fn is_eof(&self) -> bool {
-        self.lexer.is_eof()
+    pub fn is_eof(&mut self) -> bool {
+        let checkpoint = self.checkpoint();
+        let next = self.lexer.next();
+        self.restore(checkpoint);
+        next.is_none()
     }
 
     pub fn enter_span(&mut self) -> EnterSpan {

@@ -1,5 +1,7 @@
-use derive_more::Display;
+use derive_more::{derive::Deref, Display};
 use thiserror::Error;
+
+use super::compiler::GlobalId;
 
 #[repr(transparent)]
 #[derive(Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Display)]
@@ -22,6 +24,9 @@ pub enum Instr {
     Eq = 11,
     Less = 12,
     Greater = 13,
+    Print = 14,
+    Pop = 15,
+    DefineGlobal(GlobalId) = 16,
 }
 
 #[derive(Error, Debug)]
@@ -54,6 +59,17 @@ impl Instr {
             11 => Ok((Self::Eq, 1)),
             12 => Ok((Self::Less, 1)),
             13 => Ok((Self::Greater, 1)),
+            14 => Ok((Self::Print, 1)),
+            15 => Ok((Self::Pop, 1)),
+            16 => {
+                let idx = code
+                    .get(1..2)
+                    .ok_or(InvalidInstr::UnexpectedEof)?
+                    .try_into()
+                    .unwrap();
+                let idx = u16::from_le_bytes(idx);
+                Ok((Self::DefineGlobal(idx.into()), 3))
+            }
             op => Err(InvalidInstr::UnknownOpCode(op)),
         }
     }
@@ -76,6 +92,12 @@ impl Instr {
             Instr::Eq => output.push(11),
             Instr::Less => output.push(12),
             Instr::Greater => output.push(13),
+            Instr::Print => output.push(14),
+            Instr::Pop => output.push(15),
+            Instr::DefineGlobal(global_id) => {
+                output.push(16);
+                output.extend_from_slice(&global_id.to_le_bytes());
+            }
         }
     }
 
@@ -98,6 +120,9 @@ impl Instr {
             Instr::Eq => format!("<eq>"),
             Instr::Less => format!("<less>"),
             Instr::Greater => format!("<greater>"),
+            Instr::Print => format!("<print>"),
+            Instr::Pop => format!("<pop>"),
+            Instr::DefineGlobal(global_id) => format!("<define global> [{global_id}]"),
         }
     }
 }

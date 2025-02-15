@@ -1,39 +1,77 @@
+use derive_more::derive::{Deref, Display};
+use hashbrown::HashMap;
+
 use super::{
     ast::{self, visit::AstVisitor, BinaryOp, Lit, LoxAst, PrefixOp},
     chunk::{Chunk, ConstValue, Instr},
 };
 
+#[derive(Deref, Debug, Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Display, Hash)]
+pub struct GlobalId(u16);
+
+impl From<u16> for GlobalId {
+    fn from(value: u16) -> Self {
+        Self(value)
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct Compiler {
     bytecode: Chunk,
+    globals: HashMap<String, GlobalId>,
 }
 
 impl Compiler {
     pub fn compile(ast: LoxAst) -> Chunk {
+        let globals = {
+            let mut resolver = GlobalResolver::default();
+            resolver.visit_ast(&ast);
+            resolver.globals
+        };
         let mut compiler = Self {
             bytecode: Chunk::new(),
+            globals,
         };
         compiler.visit_ast(&ast);
         compiler.bytecode
     }
 }
 
+#[derive(Default, Debug)]
+pub struct GlobalResolver {
+    globals: HashMap<String, GlobalId>,
+    next_id: GlobalId,
+}
+
+impl AstVisitor for GlobalResolver {
+    fn visit_var_decl(&mut self, var_decl: &ast::VarDecl) {
+        let id = self.next_id;
+        self.globals
+            .try_insert(var_decl.name.node.clone(), id)
+            .unwrap();
+        self.next_id = GlobalId(self.next_id.0 + 1);
+    }
+}
+
 impl AstVisitor for Compiler {
-    fn visit_ast(&mut self, ast: &LoxAst) {
-        ast.walk(self);
-        self.bytecode.add_instruction(Instr::Return, 1);
+    fn visit_print_stmt(&mut self, expr: &ast::Expr) {
+        expr.walk(self);
+        self.bytecode.add_instruction(Instr::Print, 1);
     }
 
-    fn visit_expr(&mut self, expr: &ast::Expr) {
-        expr.walk(self)
+    fn visit_expr_stmt(&mut self, expr: &ast::Expr) {
+        expr.walk(self);
+        self.bytecode.add_instruction(Instr::Pop, 1);
     }
 
-    fn visit_binary_expr(&mut self, binary_expr: &ast::BinaryExpr) {
-        binary_expr.walk(self)
-    }
-
-    fn visit_prefix_expr(&mut self, prefix_expr: &ast::PrefixExpr) {
-        prefix_expr.walk(self)
+    fn visit_var_decl(&mut self, var_decl: &ast::VarDecl) {
+        let global = self.globals[&var_decl.name.node];
+        match &var_decl.rhs {
+            Some(expr) => self.visit_expr(&expr.node),
+            None => self.bytecode.add_instruction(Instr::Nil, 1),
+        }
+        self.bytecode
+            .add_instruction(Instr::DefineGlobal(global), 1);
     }
 
     fn visit_literal(&mut self, literal_expr: &Lit) {

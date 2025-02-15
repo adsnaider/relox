@@ -4,12 +4,14 @@ use std::fmt::Display;
 
 use derive_more::derive::{Display, Error, From};
 use gc::Heap;
+use hashbrown::HashMap;
 use miette::Diagnostic;
 
 use crate::lox::{chunk::Instr, value::ValueDiscriminants};
 
 use super::{
     chunk::{Chunk, ConstValue, InvalidInstr},
+    compiler::GlobalId,
     value::{TypeError, Value},
 };
 
@@ -37,6 +39,7 @@ pub type IResult = Result<(), RuntimeError>;
 pub struct Vm {
     stack: Stack,
     heap: Heap,
+    globals: HashMap<GlobalId, Value>,
 }
 
 impl Default for Vm {
@@ -76,6 +79,7 @@ impl Vm {
         Self {
             stack: Stack::new(max_stack_size),
             heap: Heap::new(),
+            globals: HashMap::new(),
         }
     }
 
@@ -99,8 +103,8 @@ impl Vm {
             );
             match inst {
                 Instr::Return => {
-                    let value = self.stack.pop().unwrap();
-                    println!("{value}");
+                    let _value = self.stack.pop().unwrap();
+                    todo!();
                 }
                 Instr::Const(const_idx) => {
                     let value = chunk.get_constant(const_idx).unwrap();
@@ -186,6 +190,17 @@ impl Vm {
                     let b = self.stack.pop().unwrap().as_num().add_ctx(off)?;
                     let a = self.stack.pop().unwrap().as_num().add_ctx(off)?;
                     self.stack.push(a > b).add_ctx(off)?;
+                }
+                Instr::Print => {
+                    let value = self.stack.pop().unwrap();
+                    println!("{value}");
+                }
+                Instr::Pop => {
+                    self.stack.pop().unwrap();
+                }
+                Instr::DefineGlobal(global_id) => {
+                    let value = self.stack.pop().unwrap();
+                    let _ = self.globals.insert(global_id, value);
                 }
             }
         }

@@ -4,13 +4,17 @@ use relox::lox::{Lox, LoxError};
 
 fn main() -> Result<(), miette::Error> {
     env_logger::init();
-    eval("print \"hello\";")?;
-    eval("print \"hello\" == \"hello\";")?;
-    eval("print \"hello\" != \"hello\";")?;
-    eval("print \"hello\" + \", world\";")?;
-    eval("var x = 3;")?;
-    eval("var x = \"hello\" + \" world!\";")?;
-    eval("print \"hello\" + \"3\" == \"hello2\";")?;
+    eval(
+        r#"
+            var a = 3;
+            var y = 4;
+            var z;
+            print a;
+            print b;
+            print z;
+        "#,
+    )?;
+
     Ok(())
 }
 
