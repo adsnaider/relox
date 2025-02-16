@@ -2,7 +2,7 @@ use derive_more::derive::{Deref, Display};
 use hashbrown::HashMap;
 
 use super::{
-    ast::{self, visit::AstVisitor, BinaryOp, Lit, LoxAst, PrefixOp},
+    ast::{self, visit::AstVisitor, BinaryOp, Expr, Lit, LoxAst, PrefixOp},
     chunk::{Chunk, ConstValue, Instr},
 };
 
@@ -58,12 +58,12 @@ impl AstVisitor for GlobalResolver {
 }
 
 impl AstVisitor for Compiler {
-    fn visit_print_stmt(&mut self, expr: &ast::Expr) {
+    fn visit_print_stmt(&mut self, expr: &Expr) {
         expr.walk(self);
         self.bytecode.add_instruction(Instr::Print, 1);
     }
 
-    fn visit_expr_stmt(&mut self, expr: &ast::Expr) {
+    fn visit_expr_stmt(&mut self, expr: &Expr) {
         expr.walk(self);
         self.bytecode.add_instruction(Instr::Pop, 1);
     }
@@ -139,5 +139,16 @@ impl AstVisitor for Compiler {
     fn visit_ident(&mut self, ident: &ast::Ident) {
         let global = self.globals.get(&ident.name).unwrap();
         self.bytecode.add_instruction(Instr::GetGlobal(*global), 1);
+    }
+
+    fn visit_assignment(&mut self, assignment: &ast::Assignment) {
+        self.visit_expr(&assignment.rhs.node);
+        match &assignment.lhs.node {
+            Expr::Ident(ident) => {
+                let global = self.globals.get(&ident.name).unwrap();
+                self.bytecode.add_instruction(Instr::SetGlobal(*global), 1);
+            }
+            _ => todo!(),
+        }
     }
 }

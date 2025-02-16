@@ -213,6 +213,14 @@ impl Vm {
                         .clone();
                     self.stack.push(value).add_ctx(off)?;
                 }
+                Instr::SetGlobal(global_id) => {
+                    let value = self.stack.pop().unwrap();
+                    *self
+                        .globals
+                        .get_mut(&global_id)
+                        .ok_or(RErrorKind::UndefinedGlobal(global_id))
+                        .add_ctx(off)? = value;
+                }
             }
         }
         Ok(())

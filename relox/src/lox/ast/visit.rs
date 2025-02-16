@@ -32,6 +32,10 @@ pub trait AstVisitor: Sized {
         var_decl.walk(self)
     }
 
+    fn visit_assignment(&mut self, assignment: &Assignment) {
+        assignment.walk(self)
+    }
+
     fn visit_expr(&mut self, expr: &Expr) {
         expr.walk(self)
     }
@@ -56,5 +60,5 @@ pub trait AstVisitor: Sized {
 
     fn visit_prefix_op(&mut self, _op: &PrefixOp) {}
 
-    fn visit_ident(&mut self, ident: &Ident) {}
+    fn visit_ident(&mut self, _ident: &Ident) {}
 }

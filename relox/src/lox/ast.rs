@@ -17,6 +17,13 @@ pub enum Stmt {
     Expr(Box<Spanned<Expr>>),
     Print(Box<Spanned<Expr>>),
     VarDecl(Box<Spanned<VarDecl>>),
+    Assignment(Box<Spanned<Assignment>>),
+}
+
+#[derive(Debug, Clone)]
+pub struct Assignment {
+    pub lhs: Spanned<Expr>,
+    pub rhs: Spanned<Expr>,
 }
 
 #[derive(Debug, Clone)]
@@ -118,6 +125,7 @@ impl Stmt {
             Stmt::Expr(expr) => visitor.visit_expr_stmt(&&expr.node),
             Stmt::Print(expr) => visitor.visit_print_stmt(&expr.node),
             Stmt::VarDecl(decl) => visitor.visit_var_decl(&decl.node),
+            Stmt::Assignment(spanned) => visitor.visit_assignment(&spanned.node),
         }
     }
 }
@@ -164,5 +172,12 @@ impl Lit {
 impl Group {
     pub fn walk<V: AstVisitor>(&self, visitor: &mut V) {
         visitor.visit_expr(&self.expr.node);
+    }
+}
+
+impl Assignment {
+    fn walk<V: AstVisitor>(&self, visitor: &mut V) {
+        visitor.visit_expr(&self.rhs.node);
+        visitor.visit_expr(&self.lhs.node);
     }
 }

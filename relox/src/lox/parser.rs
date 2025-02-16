@@ -6,7 +6,7 @@ use combine::{any, opt, take_until, Parse, StructuredLexer};
 use miette::Diagnostic;
 use thiserror::Error;
 
-use crate::lox::ast::BinaryOp;
+use crate::lox::ast::{Assignment, BinaryOp};
 
 use super::{
     ast::{
@@ -154,7 +154,14 @@ impl Parser {
             }
             _ => {
                 let expr = self.expression(lexer, 0)?;
-                Stmt::Expr(Box::new(expr))
+                if let Some(_) = TokenValue::Equal.try_next(lexer) {
+                    let rhs = self.expression(lexer, 0)?;
+                    Stmt::Assignment(Box::new(
+                        span.end(lexer).spanned(Assignment { lhs: expr, rhs }),
+                    ))
+                } else {
+                    Stmt::Expr(Box::new(expr))
+                }
             }
         };
         TokenValue::Semicolon.parse_next(lexer)?;
